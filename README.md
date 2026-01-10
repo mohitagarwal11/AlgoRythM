@@ -92,7 +92,7 @@ start index.html
 - 🟢 **Green** - Found target
 - 🔴 **Red** - Target not found
 
-## 🛠️ Technical Details
+## Technical Details
 
 ### Architecture
 
@@ -114,6 +114,6 @@ start index.html
 - Implement algorithm complexity information
 - Create step-by-step code explanation view
 
-## 👨‍💻 Author
+## Author
 
 Your Name - [@mohitagarwal11](https://github.com/mohitagarwal11)
