@@ -16,7 +16,9 @@ const linearBtn = document.getElementById("linear");
 const binaryBtn = document.getElementById("binary");
 
 const speed_slider = document.getElementById("speed_slider");
-const arrLen = document.getElementById("arrLen");
+const userArrLen = document.getElementById("arrLen");
+const targetBox = document.getElementById("target");
+const arrBox = document.getElementById("numbersInput");
 const targetIndicator = document.getElementById("target_indicator");
 const searchStatus = document.getElementById("search_status");
 const sortStatus = document.getElementById("sort_status");
@@ -71,27 +73,82 @@ class Animations {
 
 let animations = new Animations();
 let array = [];
+let originalArray = [];
 let arrlen = 100;
 let speed = speed_slider.value;
+let target = targetBox.value;
 let isPaused = false;
 let isSorting = false;
+let isUserArray = false;
+
+const targetMin = 10;
+const targetMax = 400;
+
+const userInput = arrBox.value;
 
 function generateArray() {
   animations.steps = [];
   array.length = 0;
 
-  const min = 10;
-  const max = 400;
-  const step = (max - min) / (arrlen - 1);
+  const step = (targetMax - targetMin) / (arrlen - 1);
 
   for (let i = 0; i < arrlen; i++) {
-    array.push(Math.round(min + i * step));
+    array.push(Math.round(targetMin + i * step));
   }
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
   }
-  console.log(array);
+  // console.log(array);
+}
+
+const allUnique = (arr) => new Set(arr).size === arr.length;
+const getUserArray = () => {
+  isUserArray = true;
+  const userInput = document.getElementById("numbersInput").value;
+  array = userInput
+    .split(" ")
+    .map(Number)
+    .filter((n) => !isNaN(n));
+  // console.log(array.length);
+  if (array.length != arrlen) arrlen = array.length;
+  userArrLen.value = arrlen;
+  originalArray = [...array];
+  // console.log("User Array:" + originalArray);
+  array = normalizeUserArray(array);
+  // console.log("Normalized: " + array);
+  renderBars(array);
+  if (!allUnique(array)) alert("Enter unique elements!");
+};
+
+function normalizeUserArray(arr) {
+  const minArr = Math.min(...arr);
+  const maxArr = Math.max(...arr);
+
+  if (minArr === maxArr) {
+    return arr.map(() => 200);
+  }
+
+  return arr.map((value) => {
+    const normalized =
+      ((value - minArr) / (maxArr - minArr)) * (targetMax - targetMin) +
+      targetMin;
+    return Math.round(normalized);
+  });
+}
+
+function normalizeTarget(targetValue, originalArray) {
+  const minArr = Math.min(...originalArray);
+  const maxArr = Math.max(...originalArray);
+
+  if (minArr === maxArr) {
+    return 200;
+  }
+
+  const normalized =
+    ((targetValue - minArr) / (maxArr - minArr)) * (targetMax - targetMin) +
+    targetMin;
+  return Math.round(normalized);
 }
 
 function renderBars(arr) {
@@ -109,6 +166,7 @@ function renderBars(arr) {
     bar.style.height = value + "px";
     bar.style.width = barWidth + "px";
     bar.classList.add("bar");
+    bar.dataset.height = value;
     arrCon.appendChild(bar);
   });
 }
@@ -378,6 +436,8 @@ generateBtn.addEventListener("click", () => {
   stopAnimations();
   generateArray();
   renderBars(array);
+  arrBox.value = null;
+  targetBox.value = null;
   pauseBtn.style.borderColor = "#333333";
   searchStatus.textContent = "";
   sortStatus.textContent = "";
@@ -406,21 +466,35 @@ heapBtn.addEventListener("click", () => runSort(heapSort, heapBtn));
 
 // Searching
 linearBtn.addEventListener("click", () => {
-  const targetValue = document.getElementById("target").value;
-  runSearch(linearSearch, linearBtn, targetValue);
+  target = targetBox.value;
+  if (isUserArray) target = normalizeTarget(target, originalArray);
+  // console.log("Target: " + target);
+  if (target) runSearch(linearSearch, linearBtn, target);
 });
 binaryBtn.addEventListener("click", () => {
-  const targetValue = document.getElementById("target").value;
-  runSearch(binarySearch, binaryBtn, targetValue);
+  target = targetBox.value;
+  if (isUserArray) target = normalizeTarget(target, originalArray);
+  // console.log("Target: " + target);
+  if (target) runSearch(binarySearch, binaryBtn, target);
 });
 
 speed_slider.addEventListener("input", () => {
   speed = 251 - speed_slider.value;
 });
 
-arrLen.addEventListener("input", () => {
-  if (arrLen.value <= 475) arrlen = arrLen.value;
+userArrLen.addEventListener("input", () => {
+  if (userArrLen.value <= 475) arrlen = userArrLen.value;
   else alert("Under 475 please!");
+
+  arrBox.value = null;
+  targetBox.value = null;
+
+  isUserArray = false;
   generateArray();
   renderBars(array);
+});
+
+targetBox.addEventListener("input", () => {
+  target = targetBox.value;
+  if (array.length != 0) renderBars(array);
 });

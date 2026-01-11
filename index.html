@@ -34,8 +34,12 @@
       <label>Speed:</label>
       <input type="range" id="speed_slider" min="1" max="250" value="50" />
 
-      <label>Size:</label>
+      <label>Array Size:</label>
       <input type="number" id="arrLen" min="10" max="475" value="100" />
+
+      <label>Array:</label>
+      <input type="text" id="numbersInput" placeholder="Eg: 1 2 3 4 5... " />
+      <button onclick="getUserArray()">Generate</button>
     </div>
 
     <div id="sorting_btns">
@@ -51,7 +55,7 @@
       <button id="binary">Binary Search</button>
 
       <label>Target:</label>
-      <input type="number" id="target" value="0" />
+      <input type="number" id="target" placeholder="Hover Bars" />
     </div>
   </body>
 </html>

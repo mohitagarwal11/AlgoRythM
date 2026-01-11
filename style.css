@@ -109,6 +109,23 @@ label {
   margin: 1px;
   background-color: #ff4da6;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+
+.bar:hover::after {
+  content: attr(data-height);
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
 }
 
 #sorting_btns,
@@ -122,8 +139,9 @@ label {
 
 #speed_slider,
 #arrLen,
-#target {
-  width: 130px;
+#target,
+#numbersInput {
+  width: 100px;
   text-align: center;
   padding: 5px;
   background-color: #242424;
