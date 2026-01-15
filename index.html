@@ -22,6 +22,12 @@
     <div id="sort_status"></div>
     <div id="search_status"></div>
 
+    <div class="stats_container">
+      <div>Compares: <span id="compares">0</span></div>
+      <div>Swaps: <span id="swaps">0</span></div>
+      <div>Overwrites: <span id="overwrites">0</span></div>
+    </div>
+
     <div class="array_container" id="array_container">
       <div id="target_indicator"></div>
       <!-- bars get added here -->
@@ -44,18 +50,20 @@
 
     <div id="sorting_btns">
       <button id="merge">Merge Sort</button>
-      <button id="quick">Quick Sort</button>
       <button id="heap">Heap Sort</button>
+      <button id="quick">Quick Sort</button>
       <button id="bubble">Bubble Sort</button>
       <button id="selection">Selection Sort</button>
     </div>
 
     <div id="searching_btns">
-      <button id="linear">Linear Search</button>
       <button id="binary">Binary Search</button>
+      <button id="linear">Linear Search</button>
 
       <label>Target:</label>
       <input type="number" id="target" placeholder="Hover Bars" />
+
+      <button id="random">Random Target</button>
     </div>
   </body>
 </html>

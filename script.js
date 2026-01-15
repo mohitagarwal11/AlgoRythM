@@ -23,6 +23,10 @@ const targetIndicator = document.getElementById("target_indicator");
 const searchStatus = document.getElementById("search_status");
 const sortStatus = document.getElementById("sort_status");
 
+const compareElem = document.getElementById("compares");
+const swapElem = document.getElementById("swaps");
+const overwriteElem = document.getElementById("overwrites");
+
 class Animations {
   constructor() {
     this.steps = [];
@@ -80,6 +84,7 @@ let target = targetBox.value;
 let isPaused = false;
 let isSorting = false;
 let isUserArray = false;
+let compCnt = 0;
 
 const targetMin = 10;
 const targetMax = 400;
@@ -114,11 +119,11 @@ const getUserArray = () => {
   if (array.length != arrlen) arrlen = array.length;
   userArrLen.value = arrlen;
   originalArray = [...array];
+  if (!allUnique(originalArray)) alert("Enter unique elements!");
   // console.log("User Array:" + originalArray);
   array = normalizeUserArray(array);
   // console.log("Normalized: " + array);
   renderBars(array);
-  if (!allUnique(array)) alert("Enter unique elements!");
 };
 
 function normalizeUserArray(arr) {
@@ -152,6 +157,10 @@ function normalizeTarget(targetValue, originalArray) {
 }
 
 function renderBars(arr) {
+  compareElem.textContent = 0;
+  swapElem.textContent = 0;
+  overwriteElem.textContent = 0;
+
   arrCon.innerHTML = "";
 
   const newIndicator = document.createElement("div");
@@ -161,12 +170,18 @@ function renderBars(arr) {
   const containerWidth = arrCon.offsetWidth;
   const barWidth = containerWidth / arrlen - 2;
 
-  arr.forEach((value) => {
+  arr.forEach((value, index) => {
     const bar = document.createElement("div");
     bar.style.height = value + "px";
     bar.style.width = barWidth + "px";
     bar.classList.add("bar");
-    bar.dataset.height = value;
+
+    if (isUserArray && originalArray.length > 0) {
+      bar.dataset.height = originalArray[index];
+    } else {
+      bar.dataset.height = value;
+    }
+
     arrCon.appendChild(bar);
   });
 }
@@ -223,12 +238,13 @@ async function playAnimations(speed, result) {
       const targetHeight = step.value;
       const indicator = document.getElementById("target_indicator");
       if (indicator) {
-        indicator.style.bottom = targetHeight + 5 + "px";
+        indicator.style.bottom = targetHeight + "px";
         indicator.style.display = "block";
       }
     }
 
     if (step.type === "scan") {
+      compareElem.textContent = Number(compareElem.textContent) + 1;
       const [i] = step.indices;
       for (let j = 0; j < i; j++) {
         bars[j].style.backgroundColor = "#666666";
@@ -265,9 +281,8 @@ async function playAnimations(speed, result) {
       const [start, end] = step.indices;
       for (let j = start; j <= end; j++) {
         bars[j].style.backgroundColor = "#1a1a1a";
-        await sleep(speed / 10);
       }
-      await sleep(speed / 2);
+      await sleep(speed * 20);
     }
 
     if (step.type === "found") {
@@ -329,6 +344,10 @@ async function playAnimations(speed, result) {
     }
 
     if (step.type === "compare") {
+      compCnt++;
+      if (compCnt > 0 && compCnt % 2 == 0) {
+        compareElem.textContent = Number(compareElem.textContent) + 1;
+      }
       const [i, j] = step.indices;
       bars[i].style.backgroundColor = "#00ffff";
       bars[i].style.boxShadow = "0 0 15px #00ffff";
@@ -342,6 +361,7 @@ async function playAnimations(speed, result) {
     }
 
     if (step.type === "overwrite") {
+      overwriteElem.textContent = Number(overwriteElem.textContent) + 1;
       const [i] = step.indices;
       const value = step.values[0];
       bars[i].style.height = value + "px";
@@ -351,6 +371,7 @@ async function playAnimations(speed, result) {
     }
 
     if (step.type === "swap") {
+      swapElem.textContent = Number(swapElem.textContent) + 1;
       const [i, j] = step.indices;
 
       bars[i].style.backgroundColor = "#ffffff";
@@ -434,6 +455,8 @@ homeBtn.addEventListener("click", () => {
 
 generateBtn.addEventListener("click", () => {
   stopAnimations();
+  isUserArray = false;
+  originalArray = [];
   generateArray();
   renderBars(array);
   arrBox.value = null;
@@ -495,6 +518,16 @@ userArrLen.addEventListener("input", () => {
 });
 
 targetBox.addEventListener("input", () => {
-  target = targetBox.value;
   if (array.length != 0) renderBars(array);
+});
+
+document.getElementById("random").addEventListener("click", () => {
+  renderBars(array);
+  if (array.length != 0)
+    target = array[Math.floor(Math.random() * array.length)];
+  targetBox.value = target;
+});
+
+window.addEventListener("resize", () => {
+  renderBars(array);
 });
