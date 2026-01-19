@@ -81,8 +81,8 @@ body.searching-view #search_status {
 }
 
 button {
-  padding: 10px 18px;
-  font-size: 15px;
+  padding: 8px 12px;
+  font-size: 13px;
   font-weight: 500;
   border: 2px solid #333333;
   background-color: #242424;
@@ -130,7 +130,9 @@ label {
   width: 2px;
   margin: 1px;
   background-color: #ff4da6;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
   position: relative;
 }
 
@@ -169,7 +171,7 @@ label {
 #arrLen,
 #target,
 #numbersInput {
-  width: 110px;
+  width: 80px;
   text-align: center;
   padding: 8px 10px;
   background-color: #2a2a2a;

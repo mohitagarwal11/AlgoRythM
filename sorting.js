@@ -26,7 +26,6 @@ function merge(arr, start, mid, end, aux) {
 
   while (i <= mid && j <= end) {
     animations.compare(i, j);
-    animations.compare(i, j);
 
     if (aux[i] <= aux[j]) {
       animations.overwrite(k, aux[i]);
@@ -69,7 +68,6 @@ function partition(arr, low, high) {
 
   for (let j = low; j < high; j++) {
     animations.compare(j, high);
-    animations.compare(j, high);
 
     if (arr[j] <= pivot) {
       i++;
@@ -90,6 +88,7 @@ function partition(arr, low, high) {
   return i + 1;
 }
 
+//this is not working for some reason in prev and next
 //heap sort
 function heapSort(arr) {
   const n = arr.length;
@@ -120,7 +119,6 @@ function heapify(arr, heapSize, root) {
 
   if (left < heapSize) {
     animations.compare(left, largest);
-    animations.compare(left, largest);
 
     if (arr[left] > arr[largest]) {
       largest = left;
@@ -129,7 +127,6 @@ function heapify(arr, heapSize, root) {
 
   if (right < heapSize) {
     animations.compare(right, largest);
-    animations.compare(right, largest);
 
     if (arr[right] > arr[largest]) {
       largest = right;
@@ -137,8 +134,7 @@ function heapify(arr, heapSize, root) {
   }
 
   if (largest !== root) {
-    animations.highlight(largest);
-    animations.highlight(largest);
+    animations.compare(largest, root);
     swapElements(arr, root, largest);
     animations.swap(root, largest);
 
@@ -158,7 +154,6 @@ function bubbleSort(arr) {
     for (let i = 0; i < end - 1; i++) {
       let j = i + 1;
 
-      animations.compare(i, j);
       animations.compare(i, j);
 
       if (aux[i] >= aux[j]) {
@@ -191,12 +186,9 @@ function selectionSort(arr) {
 
     for (let j = i + 1; j < n; j++) {
       animations.compare(j, minIndex);
-      animations.compare(j, minIndex);
 
       if (arr[j] < arr[minIndex]) {
         minIndex = j;
-        animations.highlight(minIndex);
-        animations.highlight(minIndex);
       }
     }
 

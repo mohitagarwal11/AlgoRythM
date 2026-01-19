@@ -24,8 +24,7 @@ function binarySearch(arr, target) {
   target = parseInt(target);
 
   const sortedArr = [...arr].sort((a, b) => a - b);
-  array = [...sortedArr];
-  renderBars(array);
+  renderBars(sortedArr);
 
   animations.setTarget(target);
 
