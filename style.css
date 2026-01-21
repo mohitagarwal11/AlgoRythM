@@ -3,7 +3,6 @@
   padding: 0;
   box-sizing: border-box;
 }
-
 html {
   overflow: hidden;
 }
@@ -18,9 +17,9 @@ body {
 }
 
 h1 {
-  font-size: 56px;
+  font-size: 60px;
   text-align: center;
-  margin: 50px auto;
+  margin: 15% 50px 50px 50px;
   font-weight: bold;
   letter-spacing: 0.5px;
 }
@@ -44,8 +43,7 @@ body.searching-view #search_status {
 
 .stats_container {
   display: none;
-  align-items: left;
-  margin-left: 110px;
+  justify-content: center;
   gap: 16px;
   font-size: 14px;
 }
@@ -76,8 +74,14 @@ body.searching-view #search_status {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 15px;
+}
+
+#sort,
+#search {
+  padding: 12px 24px;
+  font-size: 16px;
 }
 
 button {
@@ -227,7 +231,7 @@ label {
 
 body.sorting-view h1,
 body.searching-view h1 {
-  margin: 5px auto;
+  margin: 15px auto;
   font-size: 40px;
 }
 
@@ -317,61 +321,13 @@ body.searching-view #home_btn {
 }
 
 @media (max-width: 1024px) {
+  html {
+    overflow: scroll;
+  }
   h1 {
-    font-size: 40px;
+    padding-top: 50px;
   }
-
-  .array_container {
-    width: 90%;
-  }
-
-  .stats_container {
-    margin-left: 20px;
-  }
-
-  button {
-    padding: 10px 18px;
-    font-size: 14px;
-    min-width: 100px;
-  }
-}
-
-@media (max-width: 768px) {
-  h1 {
-    font-size: 36px;
-    margin: 25px 0;
-  }
-
-  body.sorting-view h1,
-  body.searching-view h1 {
-    font-size: 20px;
-  }
-
-  .array_container {
-    width: 95%;
-    height: 350px;
-  }
-
-  button {
-    padding: 8px 14px;
-    font-size: 13px;
-    min-width: 90px;
-  }
-
-  #sorting_btns,
-  #searching_btns,
-  #utility {
-    gap: 8px;
-  }
-
-  #speed_slider {
-    width: 120px;
-  }
-
-  #arrLen,
-  #target,
-  #numbersInput {
-    width: 90px;
-    font-size: 13px;
+  #home_btn {
+    padding-top: 5px;
   }
 }

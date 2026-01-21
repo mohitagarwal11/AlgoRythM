@@ -1,6 +1,6 @@
 # AlgoRyth-M
 
-An interactive algorithm visualizer that brings sorting and searching algorithms to life. This project emphasizes calrity, step by step execution making it suitable for both learning and demonstration purposes.
+An interactive algorithm visualizer that brings sorting and searching algorithms to life. This project emphasizes clarity, step by step execution making it suitable for both learning and demonstration purposes.
 
 ## Key Highlights
 
