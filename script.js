@@ -59,6 +59,9 @@ class Animations {
   scan(i) {
     this.steps.push({ type: "scan", indices: [i] });
   }
+  check(i) {
+    this.steps.push({ type: "check", indices: [i] });
+  }
   setRange(left, right) {
     this.steps.push({ type: "setRange", indices: [left, right] });
   }
@@ -287,6 +290,10 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
     const [i] = step.indices;
 
     if (isReverse) {
+      compareElem.textContent = Math.max(
+        0,
+        Number(compareElem.textContent) - 1,
+      );
       bars[i].style.backgroundColor = "#ff8800";
       bars[i].style.boxShadow = "0 0 15px #ff8800";
       await sleep(animSpeed);
@@ -302,6 +309,17 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
       bars[i].style.boxShadow = "0 0 15px #00ffff";
       await sleep(animSpeed);
       bars[i].style.boxShadow = "none";
+    }
+  }
+
+  if (step.type === "check") {
+    if (isReverse) {
+      compareElem.textContent = Math.max(
+        0,
+        Number(compareElem.textContent) - 1,
+      );
+    } else {
+      compareElem.textContent = Number(compareElem.textContent) + 1;
     }
   }
 
@@ -451,7 +469,10 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
     const [i, j] = step.indices;
 
     if (isReverse) {
-      compareElem.textContent = Number(compareElem.textContent) - 1;
+      compareElem.textContent = Math.max(
+        0,
+        Number(compareElem.textContent) - 1,
+      );
       bars[i].style.backgroundColor = "#ff8800";
       bars[i].style.boxShadow = "0 0 15px #ff8800";
       bars[j].style.backgroundColor = "#ff8800";
@@ -480,7 +501,6 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
     const value = step.values[0];
 
     if (isReverse) {
-      overwriteElem.textContent = Number(overwriteElem.textContent) - 1;
       if (step.previousValue !== undefined) {
         bars[i].style.height = step.previousValue + "px";
       }
@@ -505,7 +525,7 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
     const [i, j] = step.indices;
 
     if (isReverse) {
-      swapElem.textContent = Number(swapElem.textContent) - 1;
+      swapElem.textContent = Math.max(0, Number(swapElem.textContent) - 1);
 
       bars[i].style.backgroundColor = "#ff8800";
       bars[j].style.backgroundColor = "#ff8800";
@@ -514,9 +534,23 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
 
       await sleep(animSpeed / 2);
 
-      let temp = bars[i].style.height;
-      bars[i].style.height = bars[j].style.height;
-      bars[j].style.height = temp;
+      if (step.previousHeights) {
+        bars[i].style.height = step.previousHeights[0];
+        bars[j].style.height = step.previousHeights[1];
+      } else {
+        let temp = bars[i].style.height;
+        bars[i].style.height = bars[j].style.height;
+        bars[j].style.height = temp;
+      }
+
+      if (step.previousData) {
+        bars[i].dataset.height = step.previousData[0];
+        bars[j].dataset.height = step.previousData[1];
+      } else {
+        let tempData = bars[i].dataset.height;
+        bars[i].dataset.height = bars[j].dataset.height;
+        bars[j].dataset.height = tempData;
+      }
 
       await sleep(animSpeed / 2);
 
@@ -524,8 +558,6 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
       bars[j].style.backgroundColor = "#ff4da6";
       bars[i].style.boxShadow = "none";
       bars[j].style.boxShadow = "none";
-
-      swapElem.textContent = Math.max(0, Number(swapElem.textContent) - 1);
     } else {
       swapElem.textContent = Number(swapElem.textContent) + 1;
       bars[i].style.backgroundColor = "#ff0000";
@@ -535,9 +567,14 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
 
       await sleep(animSpeed / 2);
 
+      step.previousHeights = [bars[i].style.height, bars[j].style.height];
+      step.previousData = [bars[i].dataset.height, bars[j].dataset.height];
       let temp = bars[i].style.height;
       bars[i].style.height = bars[j].style.height;
       bars[j].style.height = temp;
+      let tempData = bars[i].dataset.height;
+      bars[i].dataset.height = bars[j].dataset.height;
+      bars[j].dataset.height = tempData;
 
       await sleep(animSpeed / 2);
 

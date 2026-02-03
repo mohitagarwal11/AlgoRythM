@@ -37,9 +37,10 @@ function binarySearch(arr, target) {
     const mid = Math.floor((left + right) / 2);
 
     animations.pivot(mid);
+    animations.check(mid);
 
     if (sortedArr[mid] === target) {
-    animations.found(mid);
+      animations.found(mid);
       return { result: mid, found: true, restore: true };
     }
 
