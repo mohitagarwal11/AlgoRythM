@@ -2,7 +2,7 @@
 
 An interactive algorithm visualizer that brings sorting and searching algorithms to life. This project emphasizes clarity and step-by-step execution, making it suitable for both learning and demonstration purposes.
 
-Live Demo: mohitagarwal11.github.io/AlgoRythM/
+Live Demo: www.mohitagarwal11.github.io/AlgoRythM/
 ## Key Highlights
 
 - Visualizes core algorithms: Merge, Quick, Heap, Bubble, Selection, Linear Search and Binary Search
