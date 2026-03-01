@@ -86,7 +86,7 @@ let animations = new Animations();
 let array = [];
 let originalArray = [];
 let arrlen = userArrLen.value;
-let speed = 251 - speed_slider.value;
+let speed = 220;
 let target = targetBox.value;
 let isPaused = false;
 let isSorting = false;
@@ -95,11 +95,13 @@ let pendingBinaryRestore = false;
 
 let currentStepIndex = -1;
 let isSteppingMode = false;
-let steppingBars = null;
 let steppingSpeed = 150;
+let visualBars = [];
 
 const targetMin = 10;
 const targetMax = 400;
+const minStepDelay = 12;
+const maxStepDelay = 1300;
 
 function updatePlaybackControls() {
   const canPause = isSorting;
@@ -117,7 +119,7 @@ function updatePlaybackControls() {
   }
 
   const hasSteps =
-    isSteppingMode && animations.steps.length > 0 && steppingBars;
+    isSteppingMode && animations.steps.length > 0;
   const canPrev = hasSteps && currentStepIndex > -1;
   const canNext =
     hasSteps && currentStepIndex < animations.steps.length - 1;
@@ -129,7 +131,19 @@ function updatePlaybackControls() {
   nextBtn.style.borderColor = stepBorder;
 }
 
-const userInput = arrBox.value;
+function sliderValueToDelay(sliderValue) {
+  const min = Number(speed_slider.min) || 1;
+  const max = Number(speed_slider.max) || 250;
+  const value = Number(sliderValue);
+  const normalized = clamp((value - min) / (max - min), 0, 1);
+
+  const curve = Math.pow(1 - normalized, 2.4);
+  return Math.round(minStepDelay + curve * (maxStepDelay - minStepDelay));
+}
+
+function syncSpeedFromSlider() {
+  speed = sliderValueToDelay(speed_slider.value);
+}
 
 function generateArray() {
   animations.steps = [];
@@ -198,6 +212,8 @@ function renderBars(arr) {
   compareElem.textContent = 0;
   swapElem.textContent = 0;
   overwriteElem.textContent = 0;
+  arrCon.style.overflow = "hidden";
+  visualBars = [];
 
   arrCon.innerHTML = "";
 
@@ -213,6 +229,7 @@ function renderBars(arr) {
     bar.style.height = value + "px";
     bar.style.width = barWidth + "px";
     bar.classList.add("bar");
+    setBarLane(bar, index);
 
     if (isUserArray && originalArray.length > 0) {
       bar.dataset.height = originalArray[index];
@@ -220,6 +237,7 @@ function renderBars(arr) {
       bar.dataset.height = value;
     }
 
+    visualBars.push(bar);
     arrCon.appendChild(bar);
   });
 }
@@ -236,8 +254,8 @@ async function runSort(sortFn, btn) {
   updatePlaybackControls();
   sortStatus.textContent = `Sorting with ${btn.textContent}...`;
 
-  const result = sortFn(array);
-  await playAnimations(speed, result);
+  sortFn(array);
+  await playAnimations();
 
   btn.style.borderColor = "#333333";
   sortStatus.textContent = `Sorted!`;
@@ -257,7 +275,7 @@ async function runSearch(searchFn, btn, target) {
   searchStatus.textContent = `Searching for: ${target}`;
 
   const result = searchFn(array, target);
-  await playAnimations(speed, result);
+  await playAnimations();
 
   if (result && result.restore) {
     pendingBinaryRestore = true;
@@ -272,352 +290,10 @@ async function runSearch(searchFn, btn, target) {
   }
 }
 
-async function animateStep(step, bars, animSpeed, isReverse = false) {
-  if (step.type === "setTarget") {
-    const targetHeight = step.value;
-    const indicator = document.getElementById("target_indicator");
-    if (indicator) {
-      if (isReverse) {
-        indicator.style.display = "none";
-      } else {
-        indicator.style.bottom = targetHeight + "px";
-        indicator.style.display = "block";
-      }
-    }
-  }
-
-  if (step.type === "scan") {
-    const [i] = step.indices;
-
-    if (isReverse) {
-      compareElem.textContent = Math.max(
-        0,
-        Number(compareElem.textContent) - 1,
-      );
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 15px #ff8800";
-      await sleep(animSpeed);
-      bars[i].style.boxShadow = "none";
-      bars[i].style.backgroundColor = "#ff4da6";
-      if (i > 0) bars[i - 1].style.backgroundColor = "#ff4da6";
-    } else {
-      compareElem.textContent = Number(compareElem.textContent) + 1;
-      for (let j = 0; j < i; j++) {
-        bars[j].style.backgroundColor = "#666666";
-      }
-      bars[i].style.backgroundColor = "#00ffff";
-      bars[i].style.boxShadow = "0 0 15px #00ffff";
-      await sleep(animSpeed);
-      bars[i].style.boxShadow = "none";
-    }
-  }
-
-  if (step.type === "check") {
-    if (isReverse) {
-      compareElem.textContent = Math.max(
-        0,
-        Number(compareElem.textContent) - 1,
-      );
-    } else {
-      compareElem.textContent = Number(compareElem.textContent) + 1;
-    }
-  }
-
-  if (step.type === "setRange") {
-    const [left, right] = step.indices;
-
-    if (isReverse) {
-      for (let j = 0; j < bars.length; j++) {
-        bars[j].style.backgroundColor = "#ff4da6";
-      }
-    } else {
-      for (let j = 0; j < bars.length; j++) {
-        if (j >= left && j <= right) {
-          bars[j].style.backgroundColor = "#ff4da6";
-        } else {
-          bars[j].style.backgroundColor = "#333333";
-        }
-      }
-      await sleep(animSpeed);
-    }
-  }
-
-  if (step.type === "pivot") {
-    const [mid] = step.indices;
-
-    if (isReverse) {
-      bars[mid].style.backgroundColor = "#ff8800";
-      bars[mid].style.boxShadow = "0 0 20px #ff8800";
-      await sleep(animSpeed);
-      bars[mid].style.backgroundColor = "#ff4da6";
-      bars[mid].style.boxShadow = "none";
-    } else {
-      bars[mid].style.backgroundColor = "#ffff00";
-      bars[mid].style.boxShadow = "0 0 20px #ffff00";
-      await sleep(animSpeed * 1.5);
-      bars[mid].style.boxShadow = "none";
-    }
-  }
-
-  if (step.type === "eliminate") {
-    const [start, end] = step.indices;
-
-    if (isReverse) {
-      for (let j = start; j <= end; j++) {
-        bars[j].style.backgroundColor = "#ff4da6";
-      }
-    } else {
-      for (let j = start; j <= end; j++) {
-        bars[j].style.backgroundColor = "#1a1a1a";
-      }
-      await sleep(animSpeed * 2);
-    }
-  }
-
-  if (step.type === "found") {
-    const [i] = step.indices;
-
-    if (isReverse) {
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 20px #ff8800";
-      await sleep(animSpeed);
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
-    } else {
-      for (let pulse = 0; pulse < 3; pulse++) {
-        bars[i].style.backgroundColor = "#00ff00";
-        bars[i].style.boxShadow = "0 0 30px #00ff00";
-        await sleep(animSpeed / 2);
-        bars[i].style.backgroundColor = "#00cc00";
-        bars[i].style.boxShadow = "0 0 10px #00ff00";
-        await sleep(animSpeed / 2);
-      }
-      bars[i].style.backgroundColor = "green";
-      bars[i].style.boxShadow = "none";
-    }
-  }
-
-  if (step.type === "notFound") {
-    if (isReverse) {
-      for (let bar of bars) {
-        bar.style.backgroundColor = "#ff8800";
-      }
-      await sleep(animSpeed / 2);
-      for (let bar of bars) {
-        bar.style.backgroundColor = "#ff4da6";
-      }
-    } else {
-      for (let flash = 0; flash < 2; flash++) {
-        for (let bar of bars) {
-          bar.style.backgroundColor = "#ff3333";
-        }
-        await sleep(animSpeed / 2);
-        for (let bar of bars) {
-          bar.style.backgroundColor = "#ff0000";
-        }
-        await sleep(animSpeed / 2);
-      }
-    }
-  }
-
-  if (step.type === "setPivot") {
-    const [i] = step.indices;
-
-    if (isReverse) {
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 15px #ff8800";
-      await sleep(animSpeed / 2);
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
-    } else {
-      bars[i].style.backgroundColor = "#ffff00";
-      bars[i].style.boxShadow = "0 0 15px #ffff00";
-      await sleep(animSpeed / 2);
-    }
-  }
-
-  if (step.type === "setPartition") {
-    const [i] = step.indices;
-
-    if (isReverse) {
-      bars[i].style.backgroundColor = "#ff4da6";
-    } else {
-      bars[i].style.backgroundColor = "#ff6600";
-      await sleep(animSpeed / 3);
-    }
-  }
-
-  if (step.type === "setSorted") {
-    const [i] = step.indices;
-
-    if (isReverse) {
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 10px #ff8800";
-      await sleep(animSpeed / 2);
-      bars[i].style.boxShadow = "none";
-      bars[i].style.backgroundColor = "#ff4da6";
-    } else {
-      bars[i].style.backgroundColor = "#00ff00";
-      bars[i].style.boxShadow = "0 0 10px #00ff00";
-      await sleep(animSpeed / 4);
-      bars[i].style.boxShadow = "none";
-      bars[i].style.backgroundColor = "#00cc00";
-    }
-  }
-
-  if (step.type === "compare") {
-    const [i, j] = step.indices;
-
-    if (isReverse) {
-      compareElem.textContent = Math.max(
-        0,
-        Number(compareElem.textContent) - 1,
-      );
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 15px #ff8800";
-      bars[j].style.backgroundColor = "#ff8800";
-      bars[j].style.boxShadow = "0 0 15px #ff8800";
-      await sleep(animSpeed);
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[j].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
-      bars[j].style.boxShadow = "none";
-    } else {
-      compareElem.textContent = Number(compareElem.textContent) + 1;
-      bars[i].style.backgroundColor = "#00ffff";
-      bars[i].style.boxShadow = "0 0 15px #00ffff";
-      bars[j].style.backgroundColor = "#00ffff";
-      bars[j].style.boxShadow = "0 0 15px #00ffff";
-      await sleep(animSpeed);
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[j].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
-      bars[j].style.boxShadow = "none";
-    }
-  }
-
-  if (step.type === "overwrite") {
-    const [i] = step.indices;
-    const value = step.values[0];
-
-    if (isReverse) {
-      if (step.previousValue !== undefined) {
-        bars[i].style.height = step.previousValue + "px";
-      }
-      bars[i].style.backgroundColor = "#ff8800";
-      await sleep(animSpeed);
-      bars[i].style.backgroundColor = "#ff4da6";
-      overwriteElem.textContent = Math.max(
-        0,
-        Number(overwriteElem.textContent) - 1,
-      );
-    } else {
-      step.previousValue = parseInt(bars[i].style.height);
-      overwriteElem.textContent = Number(overwriteElem.textContent) + 1;
-      bars[i].style.height = value + "px";
-      bars[i].style.backgroundColor = "#ff0000";
-      await sleep(animSpeed);
-      bars[i].style.backgroundColor = "#ff4da6";
-    }
-  }
-
-  if (step.type === "swap") {
-    const [i, j] = step.indices;
-
-    if (isReverse) {
-      swapElem.textContent = Math.max(0, Number(swapElem.textContent) - 1);
-
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[j].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 15px #ff8800";
-      bars[j].style.boxShadow = "0 0 15px #ff8800";
-
-      await sleep(animSpeed / 2);
-
-      if (step.previousHeights) {
-        bars[i].style.height = step.previousHeights[0];
-        bars[j].style.height = step.previousHeights[1];
-      } else {
-        let temp = bars[i].style.height;
-        bars[i].style.height = bars[j].style.height;
-        bars[j].style.height = temp;
-      }
-
-      if (step.previousData) {
-        bars[i].dataset.height = step.previousData[0];
-        bars[j].dataset.height = step.previousData[1];
-      } else {
-        let tempData = bars[i].dataset.height;
-        bars[i].dataset.height = bars[j].dataset.height;
-        bars[j].dataset.height = tempData;
-      }
-
-      await sleep(animSpeed / 2);
-
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[j].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
-      bars[j].style.boxShadow = "none";
-    } else {
-      swapElem.textContent = Number(swapElem.textContent) + 1;
-      bars[i].style.backgroundColor = "#ff0000";
-      bars[j].style.backgroundColor = "#ff0000";
-      bars[i].style.boxShadow = "0 0 15px #ff0000";
-      bars[j].style.boxShadow = "0 0 15px #ff0000";
-
-      await sleep(animSpeed / 2);
-
-      step.previousHeights = [bars[i].style.height, bars[j].style.height];
-      step.previousData = [bars[i].dataset.height, bars[j].dataset.height];
-      let temp = bars[i].style.height;
-      bars[i].style.height = bars[j].style.height;
-      bars[j].style.height = temp;
-      let tempData = bars[i].dataset.height;
-      bars[i].dataset.height = bars[j].dataset.height;
-      bars[j].dataset.height = tempData;
-
-      await sleep(animSpeed / 2);
-
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[j].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
-      bars[j].style.boxShadow = "none";
-    }
-  }
-}
-
-async function playAnimations(animSpeed, result) {
-  const bars = document.getElementsByClassName("bar");
-
-  steppingBars = bars;
-
-  isSorting = true;
-  isPaused = false;
-  isSteppingMode = false;
-  currentStepIndex = -1;
-  updatePlaybackControls();
-
-  for (let i = 0; i < animations.steps.length; i++) {
-    currentStepIndex = i;
-    const step = animations.steps[i];
-
-    if (!isSorting) break;
-    while (isPaused) {
-      await sleep(25);
-    }
-
-    await animateStep(step, bars, animSpeed, false);
-  }
-
-  isSorting = false;
-
-  isSteppingMode = true;
-  updatePlaybackControls();
-}
-
 function stopAnimations() {
   isPaused = false;
   isSorting = false;
+  resetBarTransforms();
 
   isSteppingMode = false;
   currentStepIndex = -1;
@@ -630,10 +306,6 @@ function restoreArrayAfterBinarySearch() {
   if (!pendingBinaryRestore) return;
   renderBars(array);
   pendingBinaryRestore = false;
-}
-
-function sleep() {
-  return new Promise((resolve) => setTimeout(resolve, speed));
 }
 
 function showView(viewName) {
@@ -659,6 +331,7 @@ function showHome() {
   stopAnimations();
   document.body.className = "";
   arrCon.innerHTML = "";
+  visualBars = [];
   pendingBinaryRestore = false;
   searchStatus.textContent = "";
   sortStatus.textContent = "";
@@ -699,7 +372,7 @@ pauseBtn.addEventListener("click", () => {
 });
 
 prevBtn.addEventListener("click", async () => {
-  if (!isSteppingMode || currentStepIndex < 0 || !steppingBars) {
+  if (!isSteppingMode || currentStepIndex < 0) {
     console.log("Cannot go to previous step");
     return;
   }
@@ -708,7 +381,7 @@ prevBtn.addEventListener("click", async () => {
   updatePlaybackControls();
 
   const step = animations.steps[currentStepIndex];
-  await animateStep(step, steppingBars, steppingSpeed, true);
+  await animateStep(step, getBarsSnapshot(), steppingSpeed, true);
   currentStepIndex--;
   updatePlaybackControls();
 
@@ -718,8 +391,7 @@ prevBtn.addEventListener("click", async () => {
 nextBtn.addEventListener("click", async () => {
   if (
     !isSteppingMode ||
-    currentStepIndex >= animations.steps.length - 1 ||
-    !steppingBars
+    currentStepIndex >= animations.steps.length - 1
   ) {
     console.log("Cannot go to next step");
     return;
@@ -730,7 +402,7 @@ nextBtn.addEventListener("click", async () => {
 
   currentStepIndex++;
   const step = animations.steps[currentStepIndex];
-  await animateStep(step, steppingBars, steppingSpeed, false);
+  await animateStep(step, getBarsSnapshot(), steppingSpeed, false);
   updatePlaybackControls();
 
   // console.log("Went to next step: ${currentStepIndex + 1}");
@@ -759,7 +431,7 @@ linearBtn.addEventListener("click", () => {
 
 // Utility stuff
 speed_slider.addEventListener("input", () => {
-  speed = 251 - speed_slider.value;
+  syncSpeedFromSlider();
 });
 
 userArrLen.addEventListener("input", () => {
@@ -796,4 +468,5 @@ window.addEventListener("resize", () => {
   if (!isSorting) renderBars(array);
 });
 
+syncSpeedFromSlider();
 updatePlaybackControls();
