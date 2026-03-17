@@ -52,7 +52,7 @@ function merge(arr, start, mid, end, aux, recorder) {
 
 //Quick sort
 function quickSort(arr, recorder) {
-  quickSortHelper(arr, recorder, 0, arr.length - 1);
+  return quickSortHelper(arr, recorder, 0, arr.length - 1);
 }
 function quickSortHelper(arr, recorder, low = 0, high = arr.length - 1) {
   if (low < high) {

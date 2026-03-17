@@ -2,20 +2,20 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function getBarsSnapshot() {
-  return visualBars.slice();
+function getBarsSnapshot(context) {
+  return context.visualBars.slice();
 }
 
-function resetBarTransforms() {
-  const bars = arrCon.querySelectorAll(".bar");
+function resetBarTransforms(context) {
+  const bars = context.container.querySelectorAll(".bar");
   bars.forEach((bar) => {
     bar.style.transform = "";
     bar.style.willChange = "";
   });
 }
 
-function getBarAt(index) {
-  return visualBars[index] || null;
+function getBarAt(context, index) {
+  return context.visualBars[index] || null;
 }
 
 function setBarLane(bar, laneIndex) {
@@ -23,14 +23,15 @@ function setBarLane(bar, laneIndex) {
   bar.style.order = String(laneIndex);
 }
 
-function swapVisualBars(i, j) {
+function swapVisualBars(context, i, j) {
   if (i === j) return;
-  const first = getBarAt(i);
-  const second = getBarAt(j);
+
+  const first = getBarAt(context, i);
+  const second = getBarAt(context, j);
   if (!first || !second) return;
 
-  visualBars[i] = second;
-  visualBars[j] = first;
+  context.visualBars[i] = second;
+  context.visualBars[j] = first;
   setBarLane(second, i);
   setBarLane(first, j);
 }
@@ -72,24 +73,24 @@ async function animateElement(element, keyframes, options) {
   await waitMs(fallbackDuration);
 }
 
-async function animateSwapMotion(i, j, animSpeed) {
+async function animateSwapMotion(context, i, j, animSpeed = context.speed) {
   if (i === j) return;
 
-  resetBarTransforms();
+  resetBarTransforms(context);
 
-  const firstBar = getBarAt(i);
-  const secondBar = getBarAt(j);
+  const firstBar = getBarAt(context, i);
+  const secondBar = getBarAt(context, j);
   if (!firstBar || !secondBar) return;
 
   const firstRect = firstBar.getBoundingClientRect();
   const secondRect = secondBar.getBoundingClientRect();
   const xDelta = secondRect.left - firstRect.left;
   if (!xDelta) {
-    swapVisualBars(i, j);
+    swapVisualBars(context, i, j);
     return;
   }
 
-  const bars = getBarsSnapshot();
+  const bars = getBarsSnapshot(context);
   const travelDuration = computeAnimDuration(animSpeed, 0.8, 80, 280);
   const lift = bars.length > 220 ? 4 : 8;
 
@@ -124,19 +125,25 @@ async function animateSwapMotion(i, j, animSpeed) {
     secondBar.style.willChange = "";
   }
 
-  swapVisualBars(i, j);
+  swapVisualBars(context, i, j);
 }
 
-async function animateCompareWiggle(indices, animSpeed, isReverse) {
-  const bars = getBarsSnapshot();
+async function animateCompareWiggle(
+  context,
+  indices,
+  isReverse,
+  animSpeed = context.speed,
+) {
+  const bars = getBarsSnapshot(context);
   const amplitudeX = bars.length > 220 ? 1 : 2;
   const amplitudeY = bars.length > 220 ? 1 : 2;
   const duration = computeAnimDuration(animSpeed, 0.45, 55, 150);
   const easing = isReverse ? "ease-in" : "ease-out";
 
   const wiggles = indices.map((idx, position) => {
-    const bar = getBarAt(idx);
+    const bar = getBarAt(context, idx);
     if (!bar) return Promise.resolve();
+
     const direction = position % 2 === 0 ? 1 : -1;
 
     return animateElement(
@@ -158,15 +165,25 @@ async function animateCompareWiggle(indices, animSpeed, isReverse) {
   await Promise.all(wiggles);
 }
 
-async function animateStep(step, bars, animSpeed, isReverse = false) {
+async function animateStep(
+  context,
+  step,
+  isReverse = false,
+  animSpeed = context.speed,
+) {
+  const bars = getBarsSnapshot(context);
+
   if (step.type === "setTarget") {
-    const targetHeight = step.value;
-    const indicator = document.getElementById("target_indicator");
+    const indicator =
+      context.targetIndicator ??
+      context.container.querySelector("#target_indicator");
+
     if (indicator) {
+      context.targetIndicator = indicator;
       if (isReverse) {
         indicator.style.display = "none";
       } else {
-        indicator.style.bottom = targetHeight + "px";
+        indicator.style.bottom = `${step.value}px`;
         indicator.style.display = "block";
       }
     }
@@ -174,125 +191,148 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
 
   if (step.type === "scan") {
     const [i] = step.indices;
+    const bar = getBarAt(context, i);
+    if (!bar) return;
 
     if (isReverse) {
-      compareElem.textContent = Math.max(0, Number(compareElem.textContent) - 1);
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 15px #ff8800";
+      context.compareElem.textContent = Math.max(
+        0,
+        Number(context.compareElem.textContent) - 1,
+      );
+      bar.style.backgroundColor = "#ff8800";
+      bar.style.boxShadow = "0 0 15px #ff8800";
       await sleep(animSpeed);
-      bars[i].style.boxShadow = "none";
-      bars[i].style.backgroundColor = "#ff4da6";
-      if (i > 0) bars[i - 1].style.backgroundColor = "#ff4da6";
-    } else {
-      compareElem.textContent = Number(compareElem.textContent) + 1;
-      for (let j = 0; j < i; j++) {
-        bars[j].style.backgroundColor = "#666666";
+      bar.style.boxShadow = "none";
+      bar.style.backgroundColor = "#ff4da6";
+
+      const previousBar = getBarAt(context, i - 1);
+      if (previousBar) {
+        previousBar.style.backgroundColor = "#ff4da6";
       }
-      bars[i].style.backgroundColor = "#00ffff";
-      bars[i].style.boxShadow = "0 0 15px #00ffff";
+    } else {
+      context.compareElem.textContent =
+        Number(context.compareElem.textContent) + 1;
+      for (let j = 0; j < i; j++) {
+        const scannedBar = getBarAt(context, j);
+        if (scannedBar) {
+          scannedBar.style.backgroundColor = "#666666";
+        }
+      }
+      bar.style.backgroundColor = "#00ffff";
+      bar.style.boxShadow = "0 0 15px #00ffff";
       await sleep(animSpeed);
-      bars[i].style.boxShadow = "none";
+      bar.style.boxShadow = "none";
     }
   }
 
   if (step.type === "check") {
     if (isReverse) {
-      compareElem.textContent = Math.max(0, Number(compareElem.textContent) - 1);
+      context.compareElem.textContent = Math.max(
+        0,
+        Number(context.compareElem.textContent) - 1,
+      );
     } else {
-      compareElem.textContent = Number(compareElem.textContent) + 1;
+      context.compareElem.textContent =
+        Number(context.compareElem.textContent) + 1;
     }
   }
 
   if (step.type === "setRange") {
     const [left, right] = step.indices;
 
-    if (isReverse) {
-      for (let j = 0; j < bars.length; j++) {
-        bars[j].style.backgroundColor = "#ff4da6";
+    for (let j = 0; j < bars.length; j++) {
+      const bar = getBarAt(context, j);
+      if (!bar) continue;
+
+      if (isReverse) {
+        bar.style.backgroundColor = "#ff4da6";
+      } else if (j >= left && j <= right) {
+        bar.style.backgroundColor = "#ff4da6";
+      } else {
+        bar.style.backgroundColor = "#333333";
       }
-    } else {
-      for (let j = 0; j < bars.length; j++) {
-        if (j >= left && j <= right) {
-          bars[j].style.backgroundColor = "#ff4da6";
-        } else {
-          bars[j].style.backgroundColor = "#333333";
-        }
-      }
+    }
+
+    if (!isReverse) {
       await sleep(animSpeed);
     }
   }
 
   if (step.type === "pivot") {
     const [mid] = step.indices;
+    const bar = getBarAt(context, mid);
+    if (!bar) return;
 
     if (isReverse) {
-      bars[mid].style.backgroundColor = "#ff8800";
-      bars[mid].style.boxShadow = "0 0 20px #ff8800";
+      bar.style.backgroundColor = "#ff8800";
+      bar.style.boxShadow = "0 0 20px #ff8800";
       await sleep(animSpeed);
-      bars[mid].style.backgroundColor = "#ff4da6";
-      bars[mid].style.boxShadow = "none";
+      bar.style.backgroundColor = "#ff4da6";
+      bar.style.boxShadow = "none";
     } else {
-      bars[mid].style.backgroundColor = "#ffff00";
-      bars[mid].style.boxShadow = "0 0 20px #ffff00";
+      bar.style.backgroundColor = "#ffff00";
+      bar.style.boxShadow = "0 0 20px #ffff00";
       await sleep(animSpeed * 1.5);
-      bars[mid].style.boxShadow = "none";
+      bar.style.boxShadow = "none";
     }
   }
 
   if (step.type === "eliminate") {
     const [start, end] = step.indices;
 
-    if (isReverse) {
-      for (let j = start; j <= end; j++) {
-        bars[j].style.backgroundColor = "#ff4da6";
-      }
-    } else {
-      for (let j = start; j <= end; j++) {
-        bars[j].style.backgroundColor = "#1a1a1a";
-      }
+    for (let j = start; j <= end; j++) {
+      const bar = getBarAt(context, j);
+      if (!bar) continue;
+
+      bar.style.backgroundColor = isReverse ? "#ff4da6" : "#1a1a1a";
+    }
+
+    if (!isReverse) {
       await sleep(animSpeed * 2);
     }
   }
 
   if (step.type === "found") {
     const [i] = step.indices;
+    const bar = getBarAt(context, i);
+    if (!bar) return;
 
     if (isReverse) {
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 20px #ff8800";
+      bar.style.backgroundColor = "#ff8800";
+      bar.style.boxShadow = "0 0 20px #ff8800";
       await sleep(animSpeed);
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
+      bar.style.backgroundColor = "#ff4da6";
+      bar.style.boxShadow = "none";
     } else {
       for (let pulse = 0; pulse < 3; pulse++) {
-        bars[i].style.backgroundColor = "#00ff00";
-        bars[i].style.boxShadow = "0 0 30px #00ff00";
+        bar.style.backgroundColor = "#00ff00";
+        bar.style.boxShadow = "0 0 30px #00ff00";
         await sleep(animSpeed / 2);
-        bars[i].style.backgroundColor = "#00cc00";
-        bars[i].style.boxShadow = "0 0 10px #00ff00";
+        bar.style.backgroundColor = "#00cc00";
+        bar.style.boxShadow = "0 0 10px #00ff00";
         await sleep(animSpeed / 2);
       }
-      bars[i].style.backgroundColor = "green";
-      bars[i].style.boxShadow = "none";
+      bar.style.backgroundColor = "green";
+      bar.style.boxShadow = "none";
     }
   }
 
   if (step.type === "notFound") {
     if (isReverse) {
-      for (let bar of bars) {
+      for (const bar of bars) {
         bar.style.backgroundColor = "#ff8800";
       }
       await sleep(animSpeed / 2);
-      for (let bar of bars) {
+      for (const bar of bars) {
         bar.style.backgroundColor = "#ff4da6";
       }
     } else {
       for (let flash = 0; flash < 2; flash++) {
-        for (let bar of bars) {
+        for (const bar of bars) {
           bar.style.backgroundColor = "#ff3333";
         }
         await sleep(animSpeed / 2);
-        for (let bar of bars) {
+        for (const bar of bars) {
           bar.style.backgroundColor = "#ff0000";
         }
         await sleep(animSpeed / 2);
@@ -302,73 +342,83 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
 
   if (step.type === "setPivot") {
     const [i] = step.indices;
+    const bar = getBarAt(context, i);
+    if (!bar) return;
 
     if (isReverse) {
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 15px #ff8800";
+      bar.style.backgroundColor = "#ff8800";
+      bar.style.boxShadow = "0 0 15px #ff8800";
       await sleep(animSpeed / 2);
-      bars[i].style.backgroundColor = "#ff4da6";
-      bars[i].style.boxShadow = "none";
+      bar.style.backgroundColor = "#ff4da6";
+      bar.style.boxShadow = "none";
     } else {
-      bars[i].style.backgroundColor = "#ffff00";
-      bars[i].style.boxShadow = "0 0 15px #ffff00";
+      bar.style.backgroundColor = "#ffff00";
+      bar.style.boxShadow = "0 0 15px #ffff00";
       await sleep(animSpeed / 2);
     }
   }
 
   if (step.type === "setPartition") {
     const [i] = step.indices;
+    const bar = getBarAt(context, i);
+    if (!bar) return;
 
     if (isReverse) {
-      bars[i].style.backgroundColor = "#ff4da6";
+      bar.style.backgroundColor = "#ff4da6";
     } else {
-      bars[i].style.backgroundColor = "#ff6600";
+      bar.style.backgroundColor = "#ff6600";
       await sleep(animSpeed / 3);
     }
   }
 
   if (step.type === "setSorted") {
     const [i] = step.indices;
+    const bar = getBarAt(context, i);
+    if (!bar) return;
 
     if (isReverse) {
-      bars[i].style.backgroundColor = "#ff8800";
-      bars[i].style.boxShadow = "0 0 10px #ff8800";
+      bar.style.backgroundColor = "#ff8800";
+      bar.style.boxShadow = "0 0 10px #ff8800";
       await sleep(animSpeed / 2);
-      bars[i].style.boxShadow = "none";
-      bars[i].style.backgroundColor = "#ff4da6";
+      bar.style.boxShadow = "none";
+      bar.style.backgroundColor = "#ff4da6";
     } else {
-      bars[i].style.backgroundColor = "#00ff00";
-      bars[i].style.boxShadow = "0 0 10px #00ff00";
+      bar.style.backgroundColor = "#00ff00";
+      bar.style.boxShadow = "0 0 10px #00ff00";
       await sleep(animSpeed / 4);
-      bars[i].style.boxShadow = "none";
-      bars[i].style.backgroundColor = "#00cc00";
+      bar.style.boxShadow = "none";
+      bar.style.backgroundColor = "#00cc00";
     }
   }
 
   if (step.type === "compare") {
     const [i, j] = step.indices;
-    const leftBar = getBarAt(i);
-    const rightBar = getBarAt(j);
+    const leftBar = getBarAt(context, i);
+    const rightBar = getBarAt(context, j);
     if (!leftBar || !rightBar) return;
 
     if (isReverse) {
-      compareElem.textContent = Math.max(0, Number(compareElem.textContent) - 1);
+      context.compareElem.textContent = Math.max(
+        0,
+        Number(context.compareElem.textContent) - 1,
+      );
       leftBar.style.backgroundColor = "#ff8800";
       leftBar.style.boxShadow = "0 0 15px #ff8800";
       rightBar.style.backgroundColor = "#ff8800";
       rightBar.style.boxShadow = "0 0 15px #ff8800";
-      await animateCompareWiggle([i, j], animSpeed, true);
+      await animateCompareWiggle(context, [i, j], true, animSpeed);
       leftBar.style.backgroundColor = "#ff4da6";
       rightBar.style.backgroundColor = "#ff4da6";
       leftBar.style.boxShadow = "none";
       rightBar.style.boxShadow = "none";
     } else {
-      compareElem.textContent = Number(compareElem.textContent) + 1;
+      context.compareElem.textContent =
+        Number(context.compareElem.textContent) + 1;
       leftBar.style.backgroundColor = "#00ffff";
       leftBar.style.boxShadow = "0 0 15px #00ffff";
       rightBar.style.backgroundColor = "#00ffff";
       rightBar.style.boxShadow = "0 0 15px #00ffff";
-      await animateCompareWiggle([i, j], animSpeed, false);
+      await animateCompareWiggle(context, [i, j], false, animSpeed);
       leftBar.style.backgroundColor = "#ff4da6";
       rightBar.style.backgroundColor = "#ff4da6";
       leftBar.style.boxShadow = "none";
@@ -379,7 +429,7 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
   if (step.type === "overwrite") {
     const [i] = step.indices;
     const value = step.values[0];
-    const bar = getBarAt(i);
+    const bar = getBarAt(context, i);
     if (!bar) return;
 
     if (isReverse) {
@@ -412,13 +462,18 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
         bar.style.backgroundColor = "#ff8800";
         await waitMs(computeAnimDuration(animSpeed, 0.5, 60, 180));
       }
+
       bar.style.backgroundColor = "#ff4da6";
-      overwriteElem.textContent = Math.max(0, Number(overwriteElem.textContent) - 1);
+      context.overwriteElem.textContent = Math.max(
+        0,
+        Number(context.overwriteElem.textContent) - 1,
+      );
     } else {
       step.previousValue = parseInt(bar.style.height, 10);
       step.previousData = bar.dataset.height;
 
-      overwriteElem.textContent = Number(overwriteElem.textContent) + 1;
+      context.overwriteElem.textContent =
+        Number(context.overwriteElem.textContent) + 1;
       bar.style.backgroundColor = "#ff0000";
       bar.style.boxShadow = "0 0 15px #ff0000";
       await animateElement(
@@ -440,21 +495,24 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
 
   if (step.type === "swap") {
     const [i, j] = step.indices;
-    const firstBar = getBarAt(i);
-    const secondBar = getBarAt(j);
+    const firstBar = getBarAt(context, i);
+    const secondBar = getBarAt(context, j);
     if (!firstBar || !secondBar) return;
 
     if (isReverse) {
-      swapElem.textContent = Math.max(0, Number(swapElem.textContent) - 1);
+      context.swapElem.textContent = Math.max(
+        0,
+        Number(context.swapElem.textContent) - 1,
+      );
       firstBar.style.backgroundColor = "#ff8800";
       secondBar.style.backgroundColor = "#ff8800";
       firstBar.style.boxShadow = "0 0 15px #ff8800";
       secondBar.style.boxShadow = "0 0 15px #ff8800";
 
-      await animateSwapMotion(i, j, animSpeed);
+      await animateSwapMotion(context, i, j, animSpeed);
 
-      const reverseFirst = getBarAt(i);
-      const reverseSecond = getBarAt(j);
+      const reverseFirst = getBarAt(context, i);
+      const reverseSecond = getBarAt(context, j);
       if (reverseFirst) {
         reverseFirst.style.backgroundColor = "#ff4da6";
         reverseFirst.style.boxShadow = "none";
@@ -464,16 +522,17 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
         reverseSecond.style.boxShadow = "none";
       }
     } else {
-      swapElem.textContent = Number(swapElem.textContent) + 1;
+      context.swapElem.textContent =
+        Number(context.swapElem.textContent) + 1;
       firstBar.style.backgroundColor = "#ff0000";
       secondBar.style.backgroundColor = "#ff0000";
       firstBar.style.boxShadow = "0 0 15px #ff0000";
       secondBar.style.boxShadow = "0 0 15px #ff0000";
 
-      await animateSwapMotion(i, j, animSpeed);
+      await animateSwapMotion(context, i, j, animSpeed);
 
-      const forwardFirst = getBarAt(i);
-      const forwardSecond = getBarAt(j);
+      const forwardFirst = getBarAt(context, i);
+      const forwardSecond = getBarAt(context, j);
       if (forwardFirst) {
         forwardFirst.style.backgroundColor = "#ff4da6";
         forwardFirst.style.boxShadow = "none";
@@ -486,31 +545,31 @@ async function animateStep(step, bars, animSpeed, isReverse = false) {
   }
 }
 
-async function playAnimations() {
-  isSorting = true;
-  isPaused = false;
-  isSteppingMode = false;
-  currentStepIndex = -1;
-  updatePlaybackControls();
+async function playAnimations(context) {
+  context.isSorting = true;
+  context.isPaused = false;
+  context.isSteppingMode = false;
+  context.currentStepIndex = -1;
+  updatePlaybackControls(context);
 
-  for (let i = 0; i < animations.steps.length; i++) {
-    currentStepIndex = i;
-    const step = animations.steps[i];
+  for (let i = 0; i < context.animations.steps.length; i++) {
+    context.currentStepIndex = i;
+    const step = context.animations.steps[i];
 
-    if (!isSorting) break;
-    while (isPaused) {
+    if (!context.isSorting) break;
+    while (context.isPaused) {
       await sleep(25);
     }
 
-    await animateStep(step, getBarsSnapshot(), speed, false);
+    await animateStep(context, step, false, context.speed);
   }
 
-  isSorting = false;
-  isSteppingMode = true;
-  updatePlaybackControls();
+  context.isSorting = false;
+  context.isSteppingMode = true;
+  updatePlaybackControls(context);
 }
 
-function sleep(delay = speed) {
+function sleep(delay = 0) {
   delay = Number(delay);
   const safeDelay = Number.isFinite(delay) ? Math.max(0, delay) : 0;
   return new Promise((resolve) => setTimeout(resolve, safeDelay));
