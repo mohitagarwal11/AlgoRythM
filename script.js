@@ -83,6 +83,7 @@ class Animations {
 }
 
 let animations = new Animations();
+
 let array = [];
 let originalArray = [];
 let arrlen = userArrLen.value;
@@ -146,7 +147,6 @@ function syncSpeedFromSlider() {
 }
 
 function generateArray() {
-  animations.steps = [];
   array.length = 0;
 
   const step = (targetMax - targetMin) / (arrlen - 1);
@@ -249,12 +249,15 @@ async function runSort(sortFn, btn) {
   stopAnimations();
 
   btn.style.borderColor = "#4d50ff";
-  animations.steps = [];
   isPaused = false;
   updatePlaybackControls();
   sortStatus.textContent = `Sorting with ${btn.textContent}...`;
 
-  sortFn(array);
+  // temporary for single sorting will change for comaprison
+  const recorder = new Animations();
+  sortFn(array, recorder);
+  animations = recorder;
+
   await playAnimations();
 
   btn.style.borderColor = "#333333";
@@ -269,12 +272,18 @@ async function runSearch(searchFn, btn, target) {
   renderBars(array);
 
   btn.style.borderColor = "#4d50ff";
-  animations.steps = [];
   isPaused = false;
   updatePlaybackControls();
   searchStatus.textContent = `Searching for: ${target}`;
 
-  const result = searchFn(array, target);
+  const recorder = new Animations();
+  const result = searchFn(array, target, recorder);
+  animations = recorder;
+
+  if (result?.sortedArr) {
+    renderBars(result.sortedArr);
+  }
+
   await playAnimations();
 
   if (result && result.restore) {
@@ -297,7 +306,6 @@ function stopAnimations() {
 
   isSteppingMode = false;
   currentStepIndex = -1;
-  animations.steps = [];
 
   updatePlaybackControls();
 }
