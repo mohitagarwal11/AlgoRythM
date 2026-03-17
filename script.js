@@ -25,6 +25,12 @@ const sortStatus = document.getElementById("sort_status");
 const prevBtn = document.getElementById("prev");
 const nextBtn = document.getElementById("next");
 
+const quickTips = document.getElementById("quick_tips");
+const quickTipsTitle = document.getElementById("quick_tips_title");
+const quickTipsMessage = document.getElementById("quick_tips_message");
+const quickTipsList = document.getElementById("quick_tips_list");
+const helpBtn = document.getElementById("help_btn");
+
 const compareElem = document.getElementById("compares");
 const swapElem = document.getElementById("swaps");
 const overwriteElem = document.getElementById("overwrites");
@@ -106,6 +112,41 @@ function createContext() {
 // now we can make different contexts for different algorithms for parallel viewing
 const currentContext = createContext();
 
+let isGuideOpen = true;
+
+const onboardingTips = {
+  home: {
+    title: "Getting Started",
+    message:
+      "Choose a mode based on what you want to learn, and begin with a small array so each step is easy to follow.",
+    bullets: [
+      "Sorting shows how values rearrange over time through swaps and overwrites.",
+      "Searching shows how a target is located step by step within the array.",
+    ],
+  },
+
+  "sorting-view": {
+    title: "Understanding Sorting",
+    message:
+      "Use fewer bars and a moderate speed so you can clearly observe comparisons and swaps.",
+    bullets: [
+      "Start with 10 to 20 elements to keep movements readable.",
+      "Begin with Bubble Sort or Selection Sort to understand basic patterns.",
+      "After playback, use Previous/Next to step through and analyze each operation.",
+    ],
+  },
+
+  "searching-view": {
+    title: "Understanding Searching",
+    message:
+      "Focus on how the algorithm inspects or narrows down elements to find the target.",
+    bullets: [
+      "Use Random Target or pick a visible value from the array.",
+      "Start with Linear Search to follow a simple left-to-right scan.",
+    ],
+  },
+};
+
 let arrlen = Number(userArrLen.value);
 let target = targetBox.value;
 
@@ -155,6 +196,32 @@ function sliderValueToDelay(sliderValue) {
 
 function syncSpeedFromSlider(context = currentContext) {
   context.speed = sliderValueToDelay(speedSlider.value);
+}
+
+function getActiveViewName() {
+  if (document.body.classList.contains("sorting-view")) {
+    return "sorting-view";
+  }
+
+  if (document.body.classList.contains("searching-view")) {
+    return "searching-view";
+  }
+
+  return "home";
+}
+
+function renderQuickTips(viewName = getActiveViewName()) {
+  const activeTips = onboardingTips[viewName] ?? onboardingTips.home;
+
+  quickTipsTitle.textContent = activeTips.title;
+  quickTipsMessage.textContent = activeTips.message;
+  quickTipsList.innerHTML = activeTips.bullets
+    .map((bullet) => `<li>${bullet}</li>`)
+    .join("");
+
+  quickTips.hidden = !isGuideOpen;
+  helpBtn.textContent = isGuideOpen ? "Hide Guide" : "Show Guide";
+  helpBtn.setAttribute("aria-expanded", isGuideOpen ? "true" : "false");
 }
 
 function generateArray(context) {
@@ -355,6 +422,8 @@ function showView(viewName) {
   if (currentContext.targetIndicator) {
     currentContext.targetIndicator.style.display = "none";
   }
+
+  renderQuickTips(viewName);
 }
 
 function showHome() {
@@ -366,6 +435,8 @@ function showHome() {
   currentContext.pendingBinaryRestore = false;
   searchStatus.textContent = "";
   sortStatus.textContent = "";
+
+  renderQuickTips("home");
 }
 
 sortBtn.addEventListener("click", () => {
@@ -378,6 +449,32 @@ searchBtn.addEventListener("click", () => {
 
 homeBtn.addEventListener("click", () => {
   showHome();
+});
+
+helpBtn.addEventListener("click", () => {
+  isGuideOpen = !isGuideOpen;
+  renderQuickTips();
+});
+
+document.addEventListener("click", (event) => {
+  if (!isGuideOpen) return;
+
+  const targetElement = event.target;
+  if (!(targetElement instanceof Node)) return;
+
+  if (quickTips.contains(targetElement) || helpBtn.contains(targetElement)) {
+    return;
+  }
+
+  isGuideOpen = false;
+  renderQuickTips();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && isGuideOpen) {
+    isGuideOpen = false;
+    renderQuickTips();
+  }
 });
 
 generateBtn.addEventListener("click", () => {
@@ -497,13 +594,13 @@ document.getElementById("random").addEventListener("click", () => {
   if (currentContext.isUserArray && currentContext.originalArray.length > 0) {
     const randomValue =
       currentContext.originalArray[
-        Math.floor(Math.random() * currentContext.originalArray.length)
+      Math.floor(Math.random() * currentContext.originalArray.length)
       ];
     targetBox.value = randomValue;
   } else {
     const randomValue =
       currentContext.array[
-        Math.floor(Math.random() * currentContext.array.length)
+      Math.floor(Math.random() * currentContext.array.length)
       ];
     targetBox.value = randomValue;
   }
@@ -517,3 +614,4 @@ window.addEventListener("resize", () => {
 
 syncSpeedFromSlider(currentContext);
 updatePlaybackControls(currentContext);
+renderQuickTips();
