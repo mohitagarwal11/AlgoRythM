@@ -14,7 +14,26 @@
   <body>
     <button id="home_btn">← Home</button>
 
+    <button
+      id="help_btn"
+      type="button"
+      aria-controls="quick_tips"
+      aria-expanded="true"
+    >
+      Hide Guide
+    </button>
+
     <h1>AlgoRyth-M</h1>
+    <aside id="quick_tips" class="quick_tips" aria-live="polite">
+      <div class="quick_tips_header">
+        <div>
+          <div class="quick_tips_eyebrow">Quick Guide</div>
+          <h2 id="quick_tips_title">New Here?</h2>
+        </div>
+      </div>
+      <p id="quick_tips_message"></p>
+      <ul id="quick_tips_list"></ul>
+    </aside>
     <div class="button_container">
       <button id="sort">SORTING</button>
       <button id="search">SEARCHING</button>
@@ -44,7 +63,7 @@
       <input type="range" id="speed_slider" min="1" max="250" value="50" />
 
       <label for="arrLen">Array Size:</label>
-      <input type="number" id="arrLen" min="5" max="475" value="25" />
+      <input type="number" id="arrLen" min="5" max="475" value="15" />
 
       <label for="numbersInput">Array:</label>
       <input type="text" id="numbersInput" placeholder="Eg: 1 2 3 4 5... " />

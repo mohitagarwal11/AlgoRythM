@@ -1,49 +1,85 @@
 # AlgoRyth-M
 
-An interactive algorithm visualizer that brings sorting and searching algorithms to life. This project emphasizes clarity and step-by-step execution, making it suitable for both learning and demonstration purposes.
+AlgoRyth-M is a browser-based algorithm visualizer focused on making sorting and searching easier to understand through animated, step-by-step playback.
 
 Live Demo: https://algorythm-beryl.vercel.app/
-## Key Highlights
 
-- Visualizes core algorithms: Merge, Quick, Heap, Bubble, Selection, Linear Search and Binary Search
-- Step-by-step animated execution with **pause, resume, previous and next** controls
-- Real-time tracking of **comparisons, swaps and overwrites**
-- Supports **custom user input arrays** with automatic normalization
-- Clean UI with no external libraries or frameworks
+## Overview
 
-## Technical Overview
+The app is built with vanilla HTML, CSS, and JavaScript. There is no framework, bundler, or package manager involved.
 
-- Custom animation engine that records algorithm operations as reversible steps
-- Clear separation of concerns between algorithm logic, animation rendering and UI control flow
-- Binary search visualization operates on a sorted copy for correctness
+Current visualizations include:
 
-## How to Use
+- Merge Sort
+- Quick Sort
+- Heap Sort
+- Bubble Sort
+- Selection Sort
+- Linear Search
+- Binary Search
 
-1. **Select Mode**: Choose between SORTING or SEARCHING on the home screen
-2. **Adjust Settings**:
-   - Set your custom array values and size
-   - Adjust animation speed using the slider
-3. **Choose Algorithm**: Click on any algorithm button to start visualization
-4. **Control Playback**: Use Pause/Resume to control the animation
-5. **Generate New Array**: Click "Generate New" to create a fresh random array
-6. **Return Home**: Click "Home" to go back to the main menu
+## Features
 
-### For Searching
+- Animated playback for sorting and searching algorithms
+- Pause and resume controls during playback
+- Step backward and forward after a run completes
+- Comparison, swap, and overwrite counters
+- Adjustable array size and animation speed
+- Random array generation
+- Custom user-input arrays with normalization for visualization
+- Random target selection for searching
 
-- Enter a target value in the "Target" input field
-- Target values can be identified by hovering over the bars. For custom arrays, use the original input values as the target.
-- The visualizer will show a green line indicating the target height
-- Watch as the algorithm searches for your value
+## Project Structure
 
-## Known Limitations and Issues
+The codebase is intentionally small and flat:
 
-- Array size is capped at 475 elements to prevent bars from becoming sub-pixel in width, which would break visual clarity and hover-based inspection.
+- `index.html` - main page structure and script loading order
+- `style.css` - layout, view switching, and visual styling
+- `script.js` - DOM wiring, app state, and UI event handling
+- `animation-engine.js` - animation playback and reversible step rendering
+- `sorting.js` - sorting algorithm implementations and recorder steps
+- `searching.js` - searching algorithm implementations and recorder steps
+
+## Running Locally
+
+Because this is a static app, you can run it without installing dependencies.
+
+1. Clone or download the repository.
+2. Open [index.html](/d:/PROJECTS/AlgoRythM/index.html) in a browser.
+
+
+## How To Use
+
+1. Open the app and choose `SORTING` or `SEARCHING`.
+2. Set the array size and speed if needed.
+3. Generate a random array or enter your own values.
+4. Start an algorithm from the available controls.
+5. Use `Pause`, `Previous`, and `Next` to inspect the playback.
+
+For searching:
+
+- Enter a target manually, or use `Random Target`.
+- With custom arrays, use the original input values as the target values.
+
+## Implementation Notes
+
+- The app records algorithm actions first, then replays them through a shared animation engine.
+- Sorting and searching logic are separated from animation rendering.
+- Binary search runs on a sorted copy of the displayed data so the visualization remains algorithmically correct.
+- View switching is handled through body classes and plain-script DOM updates.
+
+## Current Limitations
+
+- Array size is capped at `475` to keep bars visible and hoverable.
+- The app relies on global browser scripts loaded in a specific order.
+- Duplicate values in custom arrays currently trigger an alert, but input is not fully rejected afterward.
+- Binary search reports positions in the sorted search view, not the original unsorted order.
+- There is no automated test suite or build pipeline yet.
+
+## Roadmap
+
+The next planned milestone is a sorting comparison mode.
 
 ## Author
 
 Mohit Agarwal - [@mohitagarwal11](https://github.com/mohitagarwal11)
-
-## Acknowledgments
-
-- Inspired by algorithm visualization tools and educational resources
-- Built with passion for computer science education

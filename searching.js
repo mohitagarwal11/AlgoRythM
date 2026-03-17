@@ -1,62 +1,60 @@
 // LINEAR SEARCH
-function linearSearch(arr, target) {
-  animations.steps = [];
+function linearSearch(arr, target, recorder) {
   target = parseInt(target);
 
-  animations.setTarget(target);
+  recorder.setTarget(target);
 
   for (let i = 0; i < arr.length; i++) {
-    animations.scan(i);
+    recorder.scan(i);
 
     if (arr[i] == target) {
-      animations.found(i);
+      recorder.found(i);
       return { result: i, found: true };
     }
   }
 
-  animations.notFound();
+  recorder.notFound();
   return { result: -1, found: false };
 }
 
 // BINARY SEARCH
-function binarySearch(arr, target) {
-  animations.steps = [];
+function binarySearch(arr, target, recorder) {
   target = parseInt(target);
 
   const sortedArr = [...arr].sort((a, b) => a - b);
-  renderBars(sortedArr);
+  // renderBars(sortedArr);
 
-  animations.setTarget(target);
+  recorder.setTarget(target);
 
   let left = 0;
   let right = sortedArr.length - 1;
 
-  animations.setRange(left, right);
+  recorder.setRange(left, right);
 
   while (left <= right) {
     const mid = Math.floor((left + right) / 2);
 
-    animations.pivot(mid);
-    animations.check(mid);
+    recorder.pivot(mid);
+    recorder.check(mid);
 
     if (sortedArr[mid] === target) {
-      animations.found(mid);
-      return { result: mid, found: true, restore: true };
+      recorder.found(mid);
+      return { result: mid, found: true, sortedArr, restore: true };
     }
 
     if (sortedArr[mid] < target) {
-      animations.eliminate(left, mid);
+      recorder.eliminate(left, mid);
       left = mid + 1;
     } else {
-      animations.eliminate(mid, right);
+      recorder.eliminate(mid, right);
       right = mid - 1;
     }
 
     if (left <= right) {
-      animations.setRange(left, right);
+      recorder.setRange(left, right);
     }
   }
 
-  animations.notFound();
-  return { result: -1, found: false, restore: true };
+  recorder.notFound();
+  return { result: -1, found: false, sortedArr, restore: true };
 }

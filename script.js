@@ -15,15 +15,21 @@ const selectionBtn = document.getElementById("selection");
 const linearBtn = document.getElementById("linear");
 const binaryBtn = document.getElementById("binary");
 
-const speed_slider = document.getElementById("speed_slider");
+const speedSlider = document.getElementById("speed_slider");
 const userArrLen = document.getElementById("arrLen");
 const targetBox = document.getElementById("target");
 const arrBox = document.getElementById("numbersInput");
-const targetIndicator = document.getElementById("target_indicator");
+const initialTargetIndicator = document.getElementById("target_indicator");
 const searchStatus = document.getElementById("search_status");
 const sortStatus = document.getElementById("sort_status");
 const prevBtn = document.getElementById("prev");
 const nextBtn = document.getElementById("next");
+
+const quickTips = document.getElementById("quick_tips");
+const quickTipsTitle = document.getElementById("quick_tips_title");
+const quickTipsMessage = document.getElementById("quick_tips_message");
+const quickTipsList = document.getElementById("quick_tips_list");
+const helpBtn = document.getElementById("help_btn");
 
 const compareElem = document.getElementById("compares");
 const swapElem = document.getElementById("swaps");
@@ -41,7 +47,7 @@ class Animations {
       type: "overwrite",
       indices: [i],
       values: [value],
-      previousValue: previousValue,
+      previousValue,
     });
   }
   swap(i, j) {
@@ -54,7 +60,7 @@ class Animations {
     this.steps.push({ type: "notFound", indices: [] });
   }
   setTarget(value) {
-    this.steps.push({ type: "setTarget", value: value });
+    this.steps.push({ type: "setTarget", value });
   }
   scan(i) {
     this.steps.push({ type: "scan", indices: [i] });
@@ -82,35 +88,82 @@ class Animations {
   }
 }
 
-let animations = new Animations();
-let array = [];
-let originalArray = [];
-let arrlen = userArrLen.value;
-let speed = 220;
-let target = targetBox.value;
-let isPaused = false;
-let isSorting = false;
-let isUserArray = false;
-let pendingBinaryRestore = false;
+function createContext() {
+  return {
+    array: [],
+    originalArray: [],
+    animations: new Animations(),
+    container: arrCon,
+    targetIndicator: initialTargetIndicator,
+    visualBars: [],
+    speed: 220,
+    isPaused: false,
+    isSorting: false,
+    isSteppingMode: false,
+    currentStepIndex: -1,
+    pendingBinaryRestore: false,
+    isUserArray: false,
+    compareElem,
+    swapElem,
+    overwriteElem,
+  };
+}
 
-let currentStepIndex = -1;
-let isSteppingMode = false;
-let steppingSpeed = 150;
-let visualBars = [];
+// now we can make different contexts for different algorithms for parallel viewing
+const currentContext = createContext();
+
+let isGuideOpen = true;
+
+const onboardingTips = {
+  home: {
+    title: "Getting Started",
+    message:
+      "Choose a mode based on what you want to learn, and begin with a small array so each step is easy to follow.",
+    bullets: [
+      "Sorting shows how values rearrange over time through swaps and overwrites.",
+      "Searching shows how a target is located step by step within the array.",
+    ],
+  },
+
+  "sorting-view": {
+    title: "Understanding Sorting",
+    message:
+      "Use fewer bars and a moderate speed so you can clearly observe comparisons and swaps.",
+    bullets: [
+      "Start with 10 to 20 elements to keep movements readable.",
+      "Begin with Bubble Sort or Selection Sort to understand basic patterns.",
+      "After playback, use Previous/Next to step through and analyze each operation.",
+    ],
+  },
+
+  "searching-view": {
+    title: "Understanding Searching",
+    message:
+      "Focus on how the algorithm inspects or narrows down elements to find the target.",
+    bullets: [
+      "Use Random Target or pick a visible value from the array.",
+      "Start with Linear Search to follow a simple left-to-right scan.",
+    ],
+  },
+};
+
+let arrlen = Number(userArrLen.value);
+let target = targetBox.value;
 
 const targetMin = 10;
 const targetMax = 400;
 const minStepDelay = 12;
 const maxStepDelay = 1300;
+const steppingSpeed = 150;
 
-function updatePlaybackControls() {
-  const canPause = isSorting;
+function updatePlaybackControls(context = currentContext) {
+  const canPause = context.isSorting;
   pauseBtn.disabled = !canPause;
 
   if (!canPause) {
     pauseBtn.textContent = "Pause";
     pauseBtn.style.borderColor = "#333333";
-  } else if (isPaused) {
+  } else if (context.isPaused) {
     pauseBtn.textContent = "Resume";
     pauseBtn.style.borderColor = "#4d50ff";
   } else {
@@ -119,10 +172,10 @@ function updatePlaybackControls() {
   }
 
   const hasSteps =
-    isSteppingMode && animations.steps.length > 0;
-  const canPrev = hasSteps && currentStepIndex > -1;
+    context.isSteppingMode && context.animations.steps.length > 0;
+  const canPrev = hasSteps && context.currentStepIndex > -1;
   const canNext =
-    hasSteps && currentStepIndex < animations.steps.length - 1;
+    hasSteps && context.currentStepIndex < context.animations.steps.length - 1;
 
   prevBtn.disabled = !canPrev;
   nextBtn.disabled = !canNext;
@@ -132,8 +185,8 @@ function updatePlaybackControls() {
 }
 
 function sliderValueToDelay(sliderValue) {
-  const min = Number(speed_slider.min) || 1;
-  const max = Number(speed_slider.max) || 250;
+  const min = Number(speedSlider.min) || 1;
+  const max = Number(speedSlider.max) || 250;
   const value = Number(sliderValue);
   const normalized = clamp((value - min) / (max - min), 0, 1);
 
@@ -141,42 +194,80 @@ function sliderValueToDelay(sliderValue) {
   return Math.round(minStepDelay + curve * (maxStepDelay - minStepDelay));
 }
 
-function syncSpeedFromSlider() {
-  speed = sliderValueToDelay(speed_slider.value);
+function syncSpeedFromSlider(context = currentContext) {
+  context.speed = sliderValueToDelay(speedSlider.value);
 }
 
-function generateArray() {
-  animations.steps = [];
-  array.length = 0;
+function getActiveViewName() {
+  if (document.body.classList.contains("sorting-view")) {
+    return "sorting-view";
+  }
+
+  if (document.body.classList.contains("searching-view")) {
+    return "searching-view";
+  }
+
+  return "home";
+}
+
+function renderQuickTips(viewName = getActiveViewName()) {
+  const activeTips = onboardingTips[viewName] ?? onboardingTips.home;
+
+  quickTipsTitle.textContent = activeTips.title;
+  quickTipsMessage.textContent = activeTips.message;
+  quickTipsList.innerHTML = activeTips.bullets
+    .map((bullet) => `<li>${bullet}</li>`)
+    .join("");
+
+  quickTips.hidden = !isGuideOpen;
+  helpBtn.textContent = isGuideOpen ? "Hide Guide" : "Show Guide";
+  helpBtn.setAttribute("aria-expanded", isGuideOpen ? "true" : "false");
+}
+
+function generateArray(context) {
+  context.array.length = 0;
 
   const step = (targetMax - targetMin) / (arrlen - 1);
 
   for (let i = 0; i < arrlen; i++) {
-    array.push(Math.round(targetMin + i * step));
+    context.array.push(Math.round(targetMin + i * step));
   }
-  for (let i = array.length - 1; i > 0; i--) {
+
+  for (let i = context.array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+    [context.array[i], context.array[j]] = [context.array[j], context.array[i]];
   }
 }
 
 const allUnique = (arr) => new Set(arr).size === arr.length;
-const getUserArray = () => {
-  stopAnimations();
-  isUserArray = true;
-  const userInput = arrBox.value;
-  array = userInput
+
+function getUserArray() {
+  stopAnimations(currentContext);
+  currentContext.isUserArray = true;
+
+  const userInput = arrBox.value.trim();
+  currentContext.array = userInput
     .split(" ")
     .map(Number)
-    .filter((n) => !isNaN(n));
-  if (array.length != arrlen) arrlen = array.length;
+    .filter((n) => !Number.isNaN(n));
+
+  if (currentContext.array.length !== arrlen) {
+    arrlen = currentContext.array.length;
+  }
+
   userArrLen.value = arrlen;
-  originalArray = [...array];
-  if (!allUnique(originalArray)) alert("Enter unique elements!");
-  array = normalizeUserArray(array);
-  renderBars(array);
-  pendingBinaryRestore = false;
-};
+  currentContext.originalArray = [...currentContext.array];
+
+  if (!allUnique(currentContext.originalArray)) {
+    alert("Enter unique elements!");
+  }
+
+  currentContext.array = normalizeUserArray(currentContext.array);
+  renderBars(currentContext, currentContext.array);
+  currentContext.pendingBinaryRestore = false;
+}
+
+window.getUserArray = getUserArray;
 
 function normalizeUserArray(arr) {
   const minArr = Math.min(...arr);
@@ -208,137 +299,146 @@ function normalizeTarget(targetValue, originalArray) {
   return Math.round(normalized);
 }
 
-function renderBars(arr) {
-  compareElem.textContent = 0;
-  swapElem.textContent = 0;
-  overwriteElem.textContent = 0;
-  arrCon.style.overflow = "hidden";
-  visualBars = [];
+function renderBars(context, arr) {
+  context.compareElem.textContent = 0;
+  context.swapElem.textContent = 0;
+  context.overwriteElem.textContent = 0;
+  context.container.style.overflow = "hidden";
+  context.visualBars = [];
 
-  arrCon.innerHTML = "";
+  context.container.innerHTML = "";
 
-  const newIndicator = document.createElement("div");
-  newIndicator.id = "target_indicator";
-  arrCon.appendChild(newIndicator);
+  const indicator = document.createElement("div");
+  indicator.id = "target_indicator";
+  indicator.style.display = "none";
+  context.targetIndicator = indicator;
+  context.container.appendChild(indicator);
 
-  const containerWidth = arrCon.offsetWidth;
+  const containerWidth = context.container.offsetWidth;
   const barWidth = containerWidth / arrlen - 2;
 
   arr.forEach((value, index) => {
     const bar = document.createElement("div");
-    bar.style.height = value + "px";
-    bar.style.width = barWidth + "px";
+    bar.style.height = `${value}px`;
+    bar.style.width = `${barWidth}px`;
     bar.classList.add("bar");
     setBarLane(bar, index);
 
-    if (isUserArray && originalArray.length > 0) {
-      bar.dataset.height = originalArray[index];
+    if (context.isUserArray && context.originalArray.length > 0) {
+      bar.dataset.height = context.originalArray[index];
     } else {
       bar.dataset.height = value;
     }
 
-    visualBars.push(bar);
-    arrCon.appendChild(bar);
+    context.visualBars.push(bar);
+    context.container.appendChild(bar);
   });
 }
 
 async function runSort(sortFn, btn) {
-  if (isSorting) return;
+  if (currentContext.isSorting) return;
 
-  restoreArrayAfterBinarySearch();
-  stopAnimations();
+  restoreArrayAfterBinarySearch(currentContext);
+  stopAnimations(currentContext);
 
   btn.style.borderColor = "#4d50ff";
-  animations.steps = [];
-  isPaused = false;
-  updatePlaybackControls();
+  currentContext.animations = new Animations();
+  currentContext.isPaused = false;
+  updatePlaybackControls(currentContext);
   sortStatus.textContent = `Sorting with ${btn.textContent}...`;
 
-  sortFn(array);
-  await playAnimations();
+  sortFn(currentContext.array, currentContext.animations);
+  await playAnimations(currentContext);
 
   btn.style.borderColor = "#333333";
-  sortStatus.textContent = `Sorted!`;
+  sortStatus.textContent = "Sorted!";
 }
 
-async function runSearch(searchFn, btn, target) {
-  if (isSorting) return;
+async function runSearch(searchFn, btn, searchTarget) {
+  if (currentContext.isSorting) return;
 
-  restoreArrayAfterBinarySearch();
-  stopAnimations();
-  renderBars(array);
+  restoreArrayAfterBinarySearch(currentContext);
+  stopAnimations(currentContext);
+  renderBars(currentContext, currentContext.array);
 
   btn.style.borderColor = "#4d50ff";
-  animations.steps = [];
-  isPaused = false;
-  updatePlaybackControls();
-  searchStatus.textContent = `Searching for: ${target}`;
+  currentContext.animations = new Animations();
+  currentContext.isPaused = false;
+  updatePlaybackControls(currentContext);
+  searchStatus.textContent = `Searching for: ${searchTarget}`;
 
-  const result = searchFn(array, target);
-  await playAnimations();
+  const result = searchFn(
+    currentContext.array,
+    searchTarget,
+    currentContext.animations,
+  );
 
-  if (result && result.restore) {
-    pendingBinaryRestore = true;
+  if (result?.sortedArr) {
+    renderBars(currentContext, result.sortedArr);
+  }
+
+  await playAnimations(currentContext);
+
+  if (result?.restore) {
+    currentContext.pendingBinaryRestore = true;
   }
 
   btn.style.borderColor = "#333333";
-
-  if (result && result.found) {
-    searchStatus.textContent = `Found at index ${result.result}!`;
-  } else {
-    searchStatus.textContent = `Not found`;
-  }
+  searchStatus.textContent = result?.found
+    ? `Found at index ${result.result}!`
+    : "Not found";
 }
 
-function stopAnimations() {
-  isPaused = false;
-  isSorting = false;
-  resetBarTransforms();
+function stopAnimations(context) {
+  context.isPaused = false;
+  context.isSorting = false;
+  resetBarTransforms(context);
+  context.isSteppingMode = false;
+  context.currentStepIndex = -1;
+  context.animations = new Animations();
 
-  isSteppingMode = false;
-  currentStepIndex = -1;
-  animations.steps = [];
-
-  updatePlaybackControls();
+  updatePlaybackControls(context);
 }
 
-function restoreArrayAfterBinarySearch() {
-  if (!pendingBinaryRestore) return;
-  renderBars(array);
-  pendingBinaryRestore = false;
+function restoreArrayAfterBinarySearch(context) {
+  if (!context.pendingBinaryRestore) return;
+
+  renderBars(context, context.array);
+  context.pendingBinaryRestore = false;
 }
 
 function showView(viewName) {
-  stopAnimations();
+  stopAnimations(currentContext);
   document.body.className = viewName;
-  pendingBinaryRestore = false;
+  currentContext.pendingBinaryRestore = false;
+  currentContext.isUserArray = false;
+  currentContext.originalArray = [];
 
-  if (viewName === "sorting-view") {
-    generateArray();
-    renderBars(array);
-    searchStatus.textContent = "";
-    sortStatus.textContent = "";
-    targetIndicator.style.display = "none";
-  } else if (viewName === "searching-view") {
-    generateArray();
-    renderBars(array);
-    searchStatus.textContent = "";
-    sortStatus.textContent = "";
+  generateArray(currentContext);
+  renderBars(currentContext, currentContext.array);
+  searchStatus.textContent = "";
+  sortStatus.textContent = "";
+
+  if (currentContext.targetIndicator) {
+    currentContext.targetIndicator.style.display = "none";
   }
+
+  renderQuickTips(viewName);
 }
 
 function showHome() {
-  stopAnimations();
+  stopAnimations(currentContext);
   document.body.className = "";
-  arrCon.innerHTML = "";
-  visualBars = [];
-  pendingBinaryRestore = false;
+  currentContext.container.innerHTML = "";
+  currentContext.visualBars = [];
+  currentContext.targetIndicator = null;
+  currentContext.pendingBinaryRestore = false;
   searchStatus.textContent = "";
   sortStatus.textContent = "";
-  targetIndicator.style.display = "none";
+
+  renderQuickTips("home");
 }
 
-// Buttons general
 sortBtn.addEventListener("click", () => {
   showView("sorting-view");
 });
@@ -351,64 +451,89 @@ homeBtn.addEventListener("click", () => {
   showHome();
 });
 
-generateBtn.addEventListener("click", () => {
-  stopAnimations();
-  isUserArray = false;
-  originalArray = [];
-  generateArray();
-  renderBars(array);
-  pendingBinaryRestore = false;
-  arrBox.value = null;
-  targetBox.value = null;
-  searchStatus.textContent = "";
-  sortStatus.textContent = "";
-  targetIndicator.style.display = "none";
+helpBtn.addEventListener("click", () => {
+  isGuideOpen = !isGuideOpen;
+  renderQuickTips();
 });
 
-pauseBtn.addEventListener("click", () => {
-  if (!isSorting) return;
-  isPaused = !isPaused;
-  updatePlaybackControls();
-});
+document.addEventListener("click", (event) => {
+  if (!isGuideOpen) return;
 
-prevBtn.addEventListener("click", async () => {
-  if (!isSteppingMode || currentStepIndex < 0) {
-    console.log("Cannot go to previous step");
+  const targetElement = event.target;
+  if (!(targetElement instanceof Node)) return;
+
+  if (quickTips.contains(targetElement) || helpBtn.contains(targetElement)) {
     return;
   }
 
-  isPaused = true;
-  updatePlaybackControls();
+  isGuideOpen = false;
+  renderQuickTips();
+});
 
-  const step = animations.steps[currentStepIndex];
-  await animateStep(step, getBarsSnapshot(), steppingSpeed, true);
-  currentStepIndex--;
-  updatePlaybackControls();
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && isGuideOpen) {
+    isGuideOpen = false;
+    renderQuickTips();
+  }
+});
 
-  // console.log("Went to Prev step: ${currentStepIndex + 1}");
+generateBtn.addEventListener("click", () => {
+  stopAnimations(currentContext);
+  currentContext.isUserArray = false;
+  currentContext.originalArray = [];
+  generateArray(currentContext);
+  renderBars(currentContext, currentContext.array);
+  currentContext.pendingBinaryRestore = false;
+  arrBox.value = "";
+  targetBox.value = "";
+  searchStatus.textContent = "";
+  sortStatus.textContent = "";
+
+  if (currentContext.targetIndicator) {
+    currentContext.targetIndicator.style.display = "none";
+  }
+});
+
+pauseBtn.addEventListener("click", () => {
+  if (!currentContext.isSorting) return;
+
+  currentContext.isPaused = !currentContext.isPaused;
+  updatePlaybackControls(currentContext);
+});
+
+prevBtn.addEventListener("click", async () => {
+  if (!currentContext.isSteppingMode || currentContext.currentStepIndex < 0) {
+    return;
+  }
+
+  currentContext.isPaused = true;
+  updatePlaybackControls(currentContext);
+
+  const step = currentContext.animations.steps[currentContext.currentStepIndex];
+  await animateStep(currentContext, step, true, steppingSpeed);
+
+  currentContext.currentStepIndex--;
+  updatePlaybackControls(currentContext);
 });
 
 nextBtn.addEventListener("click", async () => {
   if (
-    !isSteppingMode ||
-    currentStepIndex >= animations.steps.length - 1
+    !currentContext.isSteppingMode ||
+    currentContext.currentStepIndex >= currentContext.animations.steps.length - 1
   ) {
-    console.log("Cannot go to next step");
     return;
   }
 
-  isPaused = true;
-  updatePlaybackControls();
+  currentContext.isPaused = true;
+  updatePlaybackControls(currentContext);
 
-  currentStepIndex++;
-  const step = animations.steps[currentStepIndex];
-  await animateStep(step, getBarsSnapshot(), steppingSpeed, false);
-  updatePlaybackControls();
+  currentContext.currentStepIndex++;
+  const step = currentContext.animations.steps[currentContext.currentStepIndex];
+  await animateStep(currentContext, step, false, steppingSpeed);
 
-  // console.log("Went to next step: ${currentStepIndex + 1}");
+  updatePlaybackControls(currentContext);
 });
 
-// Sorting
 mergeBtn.addEventListener("click", () => runSort(mergeSort, mergeBtn));
 heapBtn.addEventListener("click", () => runSort(heapSort, heapBtn));
 quickBtn.addEventListener("click", () => runSort(quickSort, quickBtn));
@@ -417,56 +542,76 @@ selectionBtn.addEventListener("click", () =>
   runSort(selectionSort, selectionBtn),
 );
 
-// Searching
 binaryBtn.addEventListener("click", () => {
   target = targetBox.value;
-  if (isUserArray) target = normalizeTarget(target, originalArray);
-  if (target) runSearch(binarySearch, binaryBtn, target);
-});
-linearBtn.addEventListener("click", () => {
-  target = targetBox.value;
-  if (isUserArray) target = normalizeTarget(target, originalArray);
-  if (target) runSearch(linearSearch, linearBtn, target);
+  if (currentContext.isUserArray) {
+    target = normalizeTarget(target, currentContext.originalArray);
+  }
+  if (target) {
+    runSearch(binarySearch, binaryBtn, target);
+  }
 });
 
-// Utility stuff
-speed_slider.addEventListener("input", () => {
-  syncSpeedFromSlider();
+linearBtn.addEventListener("click", () => {
+  target = targetBox.value;
+  if (currentContext.isUserArray) {
+    target = normalizeTarget(target, currentContext.originalArray);
+  }
+  if (target) {
+    runSearch(linearSearch, linearBtn, target);
+  }
+});
+
+speedSlider.addEventListener("input", () => {
+  syncSpeedFromSlider(currentContext);
 });
 
 userArrLen.addEventListener("input", () => {
-  if (userArrLen.value <= 475) arrlen = userArrLen.value;
-  else alert("Under 475 please!");
+  if (Number(userArrLen.value) <= 475) {
+    arrlen = Number(userArrLen.value);
+  } else {
+    alert("Under 475 please!");
+  }
 
-  arrBox.value = null;
-  targetBox.value = null;
-
-  isUserArray = false;
-  generateArray();
-  renderBars(array);
-  pendingBinaryRestore = false;
+  arrBox.value = "";
+  targetBox.value = "";
+  currentContext.isUserArray = false;
+  currentContext.originalArray = [];
+  generateArray(currentContext);
+  renderBars(currentContext, currentContext.array);
+  currentContext.pendingBinaryRestore = false;
 });
 
 targetBox.addEventListener("input", () => {
-  if (array.length != 0) renderBars(array);
+  if (currentContext.array.length !== 0) {
+    renderBars(currentContext, currentContext.array);
+  }
 });
 
 document.getElementById("random").addEventListener("click", () => {
-  if (array.length == 0) return;
+  if (currentContext.array.length === 0) return;
 
-  if (isUserArray && originalArray.length > 0) {
+  if (currentContext.isUserArray && currentContext.originalArray.length > 0) {
     const randomValue =
-      originalArray[Math.floor(Math.random() * originalArray.length)];
+      currentContext.originalArray[
+      Math.floor(Math.random() * currentContext.originalArray.length)
+      ];
     targetBox.value = randomValue;
   } else {
-    const randomValue = array[Math.floor(Math.random() * array.length)];
+    const randomValue =
+      currentContext.array[
+      Math.floor(Math.random() * currentContext.array.length)
+      ];
     targetBox.value = randomValue;
   }
 });
 
 window.addEventListener("resize", () => {
-  if (!isSorting) renderBars(array);
+  if (!currentContext.isSorting) {
+    renderBars(currentContext, currentContext.array);
+  }
 });
 
-syncSpeedFromSlider();
-updatePlaybackControls();
+syncSpeedFromSlider(currentContext);
+updatePlaybackControls(currentContext);
+renderQuickTips();
