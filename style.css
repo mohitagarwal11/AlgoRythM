@@ -117,8 +117,19 @@ body.searching-view #search_status {
 .stats_container {
   display: none;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 16px;
   font-size: 14px;
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 0 20px;
+}
+
+.stats_container > div {
+  padding: 6px 12px;
+  background-color: #202020;
+  border: 1px solid #2f2f2f;
+  border-radius: 999px;
 }
 
 #target_indicator {
@@ -371,8 +382,13 @@ body.searching-view #home_btn {
 #heap:hover::after,
 #bubble:hover::after,
 #selection:hover::after,
+#insertion:hover::after,
+#shell:hover::after,
+#radix:hover::after,
 #linear:hover::after,
-#binary:hover::after {
+#binary:hover::after,
+#jump:hover::after,
+#interpolation:hover::after {
   position: absolute;
   bottom: 100%;
   left: 50%;
@@ -393,25 +409,38 @@ body.searching-view #home_btn {
 }
 
 #merge:hover::after {
-  content: "Time: O(n log n) | Space: O(n)\A Best: O(n log n)\AWorst: O(n log n)";
+  content: "Time: O(n log n) | Space: O(n)\A Best: O(n log n)\A Worst: O(n log n)";
 }
 
 #quick:hover::after {
-  content: "Time: O(n log n) | Space: O(log n)\A Best: O(n log n)\AWorst: O(n²)";
+  content: "Time: O(n log n) | Space: O(log n)\A Best: O(n log n)\A Worst: O(n^2)";
 }
 
 #heap:hover::after {
-  content: "Time: O(n log n) | Space: O(1)\A Best: O(n log n)\AWorst: O(n log n)";
+  content: "Time: O(n log n) | Space: O(1)\A Best: O(n log n)\A Worst: O(n log n)";
 }
 
 #bubble:hover::after {
-  content: "Time: O(n²) | Space: O(1)\A Best: O(n)\AWorst: O(n²)";
+  content: "Time: O(n^2) | Space: O(1)\A Best: O(n)\A Worst: O(n^2)";
   border-color: #ff6666;
 }
 
 #selection:hover::after {
-  content: "Time: O(n²) | Space: O(1)\A Best: O(n²)\AWorst: O(n²)";
+  content: "Time: O(n^2) | Space: O(1)\A Best: O(n^2)\A Worst: O(n^2)";
   border-color: #ff6666;
+}
+
+#insertion:hover::after {
+  content: "Time: O(n^2) | Space: O(1)\A Best: O(n)\A Worst: O(n^2)";
+  border-color: #ff6666;
+}
+
+#shell:hover::after {
+  content: "Time: Depends on gaps | Space: O(1)\A Best: Near O(n log n)\A Worst: O(n^2)";
+}
+
+#radix:hover::after {
+  content: "Time: O(d(n + k)) | Space: O(n + k)\A Best: O(d(n + k))\A Works Best: Integer Values";
 }
 
 #linear:hover::after {
@@ -421,6 +450,16 @@ body.searching-view #home_btn {
 
 #binary:hover::after {
   content: "Time: O(log n) | Space: O(1)\A Requires: Sorted Array\A Best: O(1)\A Worst: O(log n)";
+  border-color: #66b3ff;
+}
+
+#jump:hover::after {
+  content: "Time: O(sqrt n) | Space: O(1)\A Requires: Sorted Array\A Best: O(1)\A Worst: O(sqrt n)";
+  border-color: #66b3ff;
+}
+
+#interpolation:hover::after {
+  content: "Time: Avg O(log log n) | Space: O(1)\A Requires: Sorted Numeric Array\A Best With: Evenly Distributed Values";
   border-color: #66b3ff;
 }
 

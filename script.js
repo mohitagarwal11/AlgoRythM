@@ -11,9 +11,14 @@ const quickBtn = document.getElementById("quick");
 const heapBtn = document.getElementById("heap");
 const bubbleBtn = document.getElementById("bubble");
 const selectionBtn = document.getElementById("selection");
+const insertionBtn = document.getElementById("insertion");
+const shellBtn = document.getElementById("shell");
+const radixBtn = document.getElementById("radix");
 
 const linearBtn = document.getElementById("linear");
 const binaryBtn = document.getElementById("binary");
+const jumpBtn = document.getElementById("jump");
+const interpolationBtn = document.getElementById("interpolation");
 
 const speedSlider = document.getElementById("speed_slider");
 const userArrLen = document.getElementById("arrLen");
@@ -34,6 +39,9 @@ const helpBtn = document.getElementById("help_btn");
 const compareElem = document.getElementById("compares");
 const swapElem = document.getElementById("swaps");
 const overwriteElem = document.getElementById("overwrites");
+const algoTimeElem = document.getElementById("algo_time");
+const playbackTimeElem = document.getElementById("playback_time");
+const stepRateElem = document.getElementById("step_rate");
 
 class Animations {
   constructor() {
@@ -101,11 +109,19 @@ function createContext() {
     isSorting: false,
     isSteppingMode: false,
     currentStepIndex: -1,
-    pendingBinaryRestore: false,
+    pendingSearchRestore: false,
+    algorithmRuntimeMs: 0,
+    playbackElapsedMs: 0,
+    playbackStartedAt: null,
+    playbackTickerId: null,
+    completedPlaybackSteps: 0,
     isUserArray: false,
     compareElem,
     swapElem,
     overwriteElem,
+    algoTimeElem,
+    playbackTimeElem,
+    stepRateElem,
   };
 }
 
@@ -131,7 +147,7 @@ const onboardingTips = {
       "Use fewer bars and a moderate speed so you can clearly observe comparisons and swaps.",
     bullets: [
       "Start with 10 to 20 elements to keep movements readable.",
-      "Begin with Bubble Sort or Selection Sort to understand basic patterns.",
+      "Begin with Bubble Sort, Selection Sort, or Insertion Sort to understand basic patterns.",
       "After playback, use Previous/Next to step through and analyze each operation.",
     ],
   },
@@ -143,6 +159,7 @@ const onboardingTips = {
     bullets: [
       "Use Random Target or pick a visible value from the array.",
       "Start with Linear Search to follow a simple left-to-right scan.",
+      "Binary, Jump, and Interpolation Search visualize on a sorted copy of the array.",
     ],
   },
 };
@@ -152,9 +169,121 @@ let target = targetBox.value;
 
 const targetMin = 10;
 const targetMax = 400;
-const minStepDelay = 12;
-const maxStepDelay = 1300;
+const minStepDelay = 4;
+const maxStepDelay = 1100;
 const steppingSpeed = 150;
+
+function formatTime(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return "0 ms";
+  }
+
+  if (ms < 1000) {
+    return `${ms.toFixed(ms < 100 ? 1 : 0)} ms`;
+  }
+
+  return `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`;
+}
+
+function formatStepRate(rate) {
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return "0 step/s";
+  }
+
+  if (rate < 100) {
+    return `${rate.toFixed(1)} step/s`;
+  }
+
+  return `${Math.round(rate)} step/s`;
+}
+
+function getPlaybackElapsedMs(context = currentContext) {
+  if (context.playbackStartedAt === null) {
+    return context.playbackElapsedMs;
+  }
+
+  return context.playbackElapsedMs + (performance.now() - context.playbackStartedAt);
+}
+
+function getCompletedStepCount(context = currentContext) {
+  if (context.isSorting) {
+    return Math.max(context.completedPlaybackSteps, context.currentStepIndex + 1, 0);
+  }
+
+  return Math.max(context.completedPlaybackSteps, 0);
+}
+
+function renderRealTimeStats(context = currentContext) {
+  context.algoTimeElem.textContent = formatTime(context.algorithmRuntimeMs);
+
+  const playbackElapsedMs = getPlaybackElapsedMs(context);
+  context.playbackTimeElem.textContent = formatTime(playbackElapsedMs);
+
+  const completedSteps = getCompletedStepCount(context);
+  const stepRate =
+    playbackElapsedMs > 0 ? (completedSteps * 1000) / playbackElapsedMs : 0;
+  context.stepRateElem.textContent = formatStepRate(stepRate);
+}
+
+function startPlaybackMetrics(context = currentContext) {
+  stopPlaybackMetrics(context);
+
+  context.playbackElapsedMs = 0;
+  context.playbackStartedAt = performance.now();
+  context.completedPlaybackSteps = 0;
+  renderRealTimeStats(context);
+
+  context.playbackTickerId = window.setInterval(() => {
+    renderRealTimeStats(context);
+  }, 80);
+}
+
+function pausePlaybackMetrics(context = currentContext) {
+  if (context.playbackStartedAt === null) return;
+
+  context.playbackElapsedMs += performance.now() - context.playbackStartedAt;
+  context.playbackStartedAt = null;
+  renderRealTimeStats(context);
+}
+
+function resumePlaybackMetrics(context = currentContext) {
+  if (!context.isSorting || context.playbackStartedAt !== null) return;
+
+  context.playbackStartedAt = performance.now();
+  renderRealTimeStats(context);
+}
+
+function stopPlaybackMetrics(context = currentContext, finalStepCount = null) {
+  if (context.playbackStartedAt !== null) {
+    context.playbackElapsedMs += performance.now() - context.playbackStartedAt;
+    context.playbackStartedAt = null;
+  }
+
+  if (typeof finalStepCount === "number") {
+    context.completedPlaybackSteps = finalStepCount;
+  } else {
+    context.completedPlaybackSteps = Math.max(
+      context.completedPlaybackSteps,
+      context.currentStepIndex + 1,
+      0,
+    );
+  }
+
+  if (context.playbackTickerId !== null) {
+    window.clearInterval(context.playbackTickerId);
+    context.playbackTickerId = null;
+  }
+
+  renderRealTimeStats(context);
+}
+
+function resetRealTimeStats(context = currentContext) {
+  stopPlaybackMetrics(context, 0);
+  context.algorithmRuntimeMs = 0;
+  context.playbackElapsedMs = 0;
+  context.completedPlaybackSteps = 0;
+  renderRealTimeStats(context);
+}
 
 function updatePlaybackControls(context = currentContext) {
   const canPause = context.isSorting;
@@ -184,18 +313,29 @@ function updatePlaybackControls(context = currentContext) {
   nextBtn.style.borderColor = stepBorder;
 }
 
-function sliderValueToDelay(sliderValue) {
+function getArraySpeedFactor(arraySize) {
+  if (arraySize >= 180) return 0.24;
+  if (arraySize >= 120) return 0.32;
+  if (arraySize >= 80) return 0.42;
+  if (arraySize >= 50) return 0.58;
+  if (arraySize >= 30) return 0.78;
+  return 1;
+}
+
+function sliderValueToDelay(sliderValue, arraySize = arrlen) {
   const min = Number(speedSlider.min) || 1;
   const max = Number(speedSlider.max) || 250;
   const value = Number(sliderValue);
   const normalized = clamp((value - min) / (max - min), 0, 1);
 
-  const curve = Math.pow(1 - normalized, 2.4);
-  return Math.round(minStepDelay + curve * (maxStepDelay - minStepDelay));
+  const curve = Math.pow(1 - normalized, 3.6);
+  const baseDelay = minStepDelay + curve * (maxStepDelay - minStepDelay);
+  return Math.max(1, Math.round(baseDelay * getArraySpeedFactor(arraySize)));
 }
 
 function syncSpeedFromSlider(context = currentContext) {
-  context.speed = sliderValueToDelay(speedSlider.value);
+  const arraySize = context.array.length || arrlen;
+  context.speed = sliderValueToDelay(speedSlider.value, arraySize);
 }
 
 function getActiveViewName() {
@@ -264,7 +404,8 @@ function getUserArray() {
 
   currentContext.array = normalizeUserArray(currentContext.array);
   renderBars(currentContext, currentContext.array);
-  currentContext.pendingBinaryRestore = false;
+  currentContext.pendingSearchRestore = false;
+  syncSpeedFromSlider(currentContext);
 }
 
 window.getUserArray = getUserArray;
@@ -347,8 +488,17 @@ async function runSort(sortFn, btn) {
   updatePlaybackControls(currentContext);
   sortStatus.textContent = `Sorting with ${btn.textContent}...`;
 
+  const computeStart = performance.now();
   sortFn(currentContext.array, currentContext.animations);
+  currentContext.algorithmRuntimeMs = performance.now() - computeStart;
+  renderRealTimeStats(currentContext);
+
+  startPlaybackMetrics(currentContext);
   await playAnimations(currentContext);
+  stopPlaybackMetrics(
+    currentContext,
+    currentContext.animations.steps.length,
+  );
 
   btn.style.borderColor = "#333333";
   sortStatus.textContent = "Sorted!";
@@ -367,20 +517,28 @@ async function runSearch(searchFn, btn, searchTarget) {
   updatePlaybackControls(currentContext);
   searchStatus.textContent = `Searching for: ${searchTarget}`;
 
+  const computeStart = performance.now();
   const result = searchFn(
     currentContext.array,
     searchTarget,
     currentContext.animations,
   );
+  currentContext.algorithmRuntimeMs = performance.now() - computeStart;
+  renderRealTimeStats(currentContext);
 
   if (result?.sortedArr) {
     renderBars(currentContext, result.sortedArr);
   }
 
+  startPlaybackMetrics(currentContext);
   await playAnimations(currentContext);
+  stopPlaybackMetrics(
+    currentContext,
+    currentContext.animations.steps.length,
+  );
 
   if (result?.restore) {
-    currentContext.pendingBinaryRestore = true;
+    currentContext.pendingSearchRestore = true;
   }
 
   btn.style.borderColor = "#333333";
@@ -390,27 +548,29 @@ async function runSearch(searchFn, btn, searchTarget) {
 }
 
 function stopAnimations(context) {
+  stopPlaybackMetrics(context, 0);
   context.isPaused = false;
   context.isSorting = false;
   resetBarTransforms(context);
   context.isSteppingMode = false;
   context.currentStepIndex = -1;
   context.animations = new Animations();
+  resetRealTimeStats(context);
 
   updatePlaybackControls(context);
 }
 
 function restoreArrayAfterBinarySearch(context) {
-  if (!context.pendingBinaryRestore) return;
+  if (!context.pendingSearchRestore) return;
 
   renderBars(context, context.array);
-  context.pendingBinaryRestore = false;
+  context.pendingSearchRestore = false;
 }
 
 function showView(viewName) {
   stopAnimations(currentContext);
   document.body.className = viewName;
-  currentContext.pendingBinaryRestore = false;
+  currentContext.pendingSearchRestore = false;
   currentContext.isUserArray = false;
   currentContext.originalArray = [];
 
@@ -418,6 +578,7 @@ function showView(viewName) {
   renderBars(currentContext, currentContext.array);
   searchStatus.textContent = "";
   sortStatus.textContent = "";
+  syncSpeedFromSlider(currentContext);
 
   if (currentContext.targetIndicator) {
     currentContext.targetIndicator.style.display = "none";
@@ -432,7 +593,7 @@ function showHome() {
   currentContext.container.innerHTML = "";
   currentContext.visualBars = [];
   currentContext.targetIndicator = null;
-  currentContext.pendingBinaryRestore = false;
+  currentContext.pendingSearchRestore = false;
   searchStatus.textContent = "";
   sortStatus.textContent = "";
 
@@ -483,7 +644,8 @@ generateBtn.addEventListener("click", () => {
   currentContext.originalArray = [];
   generateArray(currentContext);
   renderBars(currentContext, currentContext.array);
-  currentContext.pendingBinaryRestore = false;
+  currentContext.pendingSearchRestore = false;
+  syncSpeedFromSlider(currentContext);
   arrBox.value = "";
   targetBox.value = "";
   searchStatus.textContent = "";
@@ -498,6 +660,11 @@ pauseBtn.addEventListener("click", () => {
   if (!currentContext.isSorting) return;
 
   currentContext.isPaused = !currentContext.isPaused;
+  if (currentContext.isPaused) {
+    pausePlaybackMetrics(currentContext);
+  } else {
+    resumePlaybackMetrics(currentContext);
+  }
   updatePlaybackControls(currentContext);
 });
 
@@ -541,6 +708,11 @@ bubbleBtn.addEventListener("click", () => runSort(bubbleSort, bubbleBtn));
 selectionBtn.addEventListener("click", () =>
   runSort(selectionSort, selectionBtn),
 );
+insertionBtn.addEventListener("click", () =>
+  runSort(insertionSort, insertionBtn),
+);
+shellBtn.addEventListener("click", () => runSort(shellSort, shellBtn));
+radixBtn.addEventListener("click", () => runSort(radixSort, radixBtn));
 
 binaryBtn.addEventListener("click", () => {
   target = targetBox.value;
@@ -562,6 +734,26 @@ linearBtn.addEventListener("click", () => {
   }
 });
 
+jumpBtn.addEventListener("click", () => {
+  target = targetBox.value;
+  if (currentContext.isUserArray) {
+    target = normalizeTarget(target, currentContext.originalArray);
+  }
+  if (target) {
+    runSearch(jumpSearch, jumpBtn, target);
+  }
+});
+
+interpolationBtn.addEventListener("click", () => {
+  target = targetBox.value;
+  if (currentContext.isUserArray) {
+    target = normalizeTarget(target, currentContext.originalArray);
+  }
+  if (target) {
+    runSearch(interpolationSearch, interpolationBtn, target);
+  }
+});
+
 speedSlider.addEventListener("input", () => {
   syncSpeedFromSlider(currentContext);
 });
@@ -579,7 +771,8 @@ userArrLen.addEventListener("input", () => {
   currentContext.originalArray = [];
   generateArray(currentContext);
   renderBars(currentContext, currentContext.array);
-  currentContext.pendingBinaryRestore = false;
+  currentContext.pendingSearchRestore = false;
+  syncSpeedFromSlider(currentContext);
 });
 
 targetBox.addEventListener("input", () => {
@@ -614,4 +807,5 @@ window.addEventListener("resize", () => {
 
 syncSpeedFromSlider(currentContext);
 updatePlaybackControls(currentContext);
+renderRealTimeStats(currentContext);
 renderQuickTips();

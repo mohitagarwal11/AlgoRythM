@@ -205,3 +205,103 @@ function selectionSort(arr, recorder) {
 
   return arr;
 }
+
+//Insertion sort
+function insertionSort(arr, recorder) {
+  const n = arr.length;
+
+  for (let i = 1; i < n; i++) {
+    let j = i;
+
+    while (j > 0) {
+      recorder.compare(j - 1, j);
+
+      if (arr[j - 1] <= arr[j]) {
+        break;
+      }
+
+      swapElements(arr, j - 1, j);
+      recorder.swap(j - 1, j);
+      j--;
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    recorder.setSorted(i);
+  }
+
+  return arr;
+}
+
+//Shell sort
+function shellSort(arr, recorder) {
+  const n = arr.length;
+
+  for (let gap = Math.floor(n / 2); gap > 0; gap = Math.floor(gap / 2)) {
+    for (let i = gap; i < n; i++) {
+      let j = i;
+
+      while (j >= gap) {
+        recorder.compare(j - gap, j);
+
+        if (arr[j - gap] <= arr[j]) {
+          break;
+        }
+
+        swapElements(arr, j - gap, j);
+        recorder.swap(j - gap, j);
+        j -= gap;
+      }
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    recorder.setSorted(i);
+  }
+
+  return arr;
+}
+
+//Radix sort
+function radixSort(arr, recorder) {
+  if (arr.length === 0) {
+    return arr;
+  }
+
+  const maxValue = Math.max(...arr);
+
+  for (let exp = 1; Math.floor(maxValue / exp) > 0; exp *= 10) {
+    countingSortByDigit(arr, exp, recorder);
+  }
+
+  for (let i = 0; i < arr.length; i++) {
+    recorder.setSorted(i);
+  }
+
+  return arr;
+}
+
+function countingSortByDigit(arr, exp, recorder) {
+  const output = new Array(arr.length);
+  const count = Array(10).fill(0);
+
+  for (let i = 0; i < arr.length; i++) {
+    const digit = Math.floor(arr[i] / exp) % 10;
+    count[digit]++;
+  }
+
+  for (let i = 1; i < count.length; i++) {
+    count[i] += count[i - 1];
+  }
+
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const digit = Math.floor(arr[i] / exp) % 10;
+    output[count[digit] - 1] = arr[i];
+    count[digit]--;
+  }
+
+  for (let i = 0; i < arr.length; i++) {
+    recorder.overwrite(i, output[i]);
+    arr[i] = output[i];
+  }
+}

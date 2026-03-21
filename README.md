@@ -15,8 +15,12 @@ Current visualizations include:
 - Heap Sort
 - Bubble Sort
 - Selection Sort
+- Insertion Sort
+- Shell Sort
 - Linear Search
 - Binary Search
+- Jump Search
+- Interpolation Search
 
 ## Features
 

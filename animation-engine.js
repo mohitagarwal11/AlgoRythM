@@ -91,7 +91,7 @@ async function animateSwapMotion(context, i, j, animSpeed = context.speed) {
   }
 
   const bars = getBarsSnapshot(context);
-  const travelDuration = computeAnimDuration(animSpeed, 0.8, 80, 280);
+  const travelDuration = computeAnimDuration(animSpeed, 0.55, 18, 140);
   const lift = bars.length > 220 ? 4 : 8;
 
   firstBar.style.willChange = "transform";
@@ -137,7 +137,7 @@ async function animateCompareWiggle(
   const bars = getBarsSnapshot(context);
   const amplitudeX = bars.length > 220 ? 1 : 2;
   const amplitudeY = bars.length > 220 ? 1 : 2;
-  const duration = computeAnimDuration(animSpeed, 0.45, 55, 150);
+  const duration = computeAnimDuration(animSpeed, 0.25, 10, 55);
   const easing = isReverse ? "ease-in" : "ease-out";
 
   const wiggles = indices.map((idx, position) => {
@@ -449,7 +449,7 @@ async function animateStep(
             { height: `${previousHeight}px` },
           ],
           {
-            duration: computeAnimDuration(animSpeed, 0.7, 80, 260),
+            duration: computeAnimDuration(animSpeed, 0.45, 16, 110),
             easing: "ease-out",
             fill: "forwards",
           },
@@ -460,7 +460,7 @@ async function animateStep(
         bar.style.boxShadow = "none";
       } else {
         bar.style.backgroundColor = "#ff8800";
-        await waitMs(computeAnimDuration(animSpeed, 0.5, 60, 180));
+        await waitMs(computeAnimDuration(animSpeed, 0.3, 12, 60));
       }
 
       bar.style.backgroundColor = "#ff4da6";
@@ -480,7 +480,7 @@ async function animateStep(
         bar,
         [{ height: `${step.previousValue}px` }, { height: `${value}px` }],
         {
-          duration: computeAnimDuration(animSpeed, 0.7, 80, 260),
+          duration: computeAnimDuration(animSpeed, 0.45, 16, 110),
           easing: "ease-in-out",
           fill: "forwards",
         },
