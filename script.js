@@ -43,6 +43,26 @@ const algoTimeElem = document.getElementById("algo_time");
 const playbackTimeElem = document.getElementById("playback_time");
 const stepRateElem = document.getElementById("step_rate");
 
+const SPEED_SETTINGS = {
+  slowestMs: 450,
+  fastestMs: 8,
+};
+
+function getSpeedFromSliderValue(value = Number(speedSlider.value)) {
+  const min = Number(speedSlider.min);
+  const max = Number(speedSlider.max);
+
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
+    return SPEED_SETTINGS.slowestMs;
+  }
+
+  const clampedValue = Math.max(min, Math.min(max, value));
+  const progress = (clampedValue - min) / (max - min);
+  const span = SPEED_SETTINGS.slowestMs - SPEED_SETTINGS.fastestMs;
+
+  return Math.round(SPEED_SETTINGS.slowestMs - progress * span);
+}
+
 class Animations {
   constructor() {
     this.steps = [];
@@ -104,7 +124,7 @@ function createContext() {
     container: arrCon,
     targetIndicator: initialTargetIndicator,
     visualBars: [],
-    speed: 220,
+    speed: getSpeedFromSliderValue(),
     isPaused: false,
     isSorting: false,
     isSteppingMode: false,
@@ -169,9 +189,6 @@ let target = targetBox.value;
 
 const targetMin = 10;
 const targetMax = 400;
-const minStepDelay = 4;
-const maxStepDelay = 1100;
-const steppingSpeed = 150;
 
 function formatTime(ms) {
   if (!Number.isFinite(ms) || ms <= 0) {
@@ -179,10 +196,10 @@ function formatTime(ms) {
   }
 
   if (ms < 1000) {
-    return `${ms.toFixed(ms < 100 ? 1 : 0)} ms`;
+    return `${Number(ms.toPrecision(4))} ms`;
   }
 
-  return `${(ms / 1000).toFixed(ms < 10000 ? 2 : 1)} s`;
+  return `${Number((ms / 1000).toPrecision(4))} s`;
 }
 
 function formatStepRate(rate) {
@@ -202,12 +219,18 @@ function getPlaybackElapsedMs(context = currentContext) {
     return context.playbackElapsedMs;
   }
 
-  return context.playbackElapsedMs + (performance.now() - context.playbackStartedAt);
+  return (
+    context.playbackElapsedMs + (performance.now() - context.playbackStartedAt)
+  );
 }
 
 function getCompletedStepCount(context = currentContext) {
   if (context.isSorting) {
-    return Math.max(context.completedPlaybackSteps, context.currentStepIndex + 1, 0);
+    return Math.max(
+      context.completedPlaybackSteps,
+      context.currentStepIndex + 1,
+      0,
+    );
   }
 
   return Math.max(context.completedPlaybackSteps, 0);
@@ -313,31 +336,6 @@ function updatePlaybackControls(context = currentContext) {
   nextBtn.style.borderColor = stepBorder;
 }
 
-function getArraySpeedFactor(arraySize) {
-  if (arraySize >= 180) return 0.24;
-  if (arraySize >= 120) return 0.32;
-  if (arraySize >= 80) return 0.42;
-  if (arraySize >= 50) return 0.58;
-  if (arraySize >= 30) return 0.78;
-  return 1;
-}
-
-function sliderValueToDelay(sliderValue, arraySize = arrlen) {
-  const min = Number(speedSlider.min) || 1;
-  const max = Number(speedSlider.max) || 250;
-  const value = Number(sliderValue);
-  const normalized = clamp((value - min) / (max - min), 0, 1);
-
-  const curve = Math.pow(1 - normalized, 3.6);
-  const baseDelay = minStepDelay + curve * (maxStepDelay - minStepDelay);
-  return Math.max(1, Math.round(baseDelay * getArraySpeedFactor(arraySize)));
-}
-
-function syncSpeedFromSlider(context = currentContext) {
-  const arraySize = context.array.length || arrlen;
-  context.speed = sliderValueToDelay(speedSlider.value, arraySize);
-}
-
 function getActiveViewName() {
   if (document.body.classList.contains("sorting-view")) {
     return "sorting-view";
@@ -405,7 +403,7 @@ function getUserArray() {
   currentContext.array = normalizeUserArray(currentContext.array);
   renderBars(currentContext, currentContext.array);
   currentContext.pendingSearchRestore = false;
-  syncSpeedFromSlider(currentContext);
+  currentContext.speed = getSpeedFromSliderValue();
 }
 
 window.getUserArray = getUserArray;
@@ -484,6 +482,7 @@ async function runSort(sortFn, btn) {
 
   btn.style.borderColor = "#4d50ff";
   currentContext.animations = new Animations();
+  currentContext.speed = getSpeedFromSliderValue();
   currentContext.isPaused = false;
   updatePlaybackControls(currentContext);
   sortStatus.textContent = `Sorting with ${btn.textContent}...`;
@@ -495,10 +494,7 @@ async function runSort(sortFn, btn) {
 
   startPlaybackMetrics(currentContext);
   await playAnimations(currentContext);
-  stopPlaybackMetrics(
-    currentContext,
-    currentContext.animations.steps.length,
-  );
+  stopPlaybackMetrics(currentContext, currentContext.animations.steps.length);
 
   btn.style.borderColor = "#333333";
   sortStatus.textContent = "Sorted!";
@@ -513,6 +509,7 @@ async function runSearch(searchFn, btn, searchTarget) {
 
   btn.style.borderColor = "#4d50ff";
   currentContext.animations = new Animations();
+  currentContext.speed = getSpeedFromSliderValue();
   currentContext.isPaused = false;
   updatePlaybackControls(currentContext);
   searchStatus.textContent = `Searching for: ${searchTarget}`;
@@ -532,10 +529,7 @@ async function runSearch(searchFn, btn, searchTarget) {
 
   startPlaybackMetrics(currentContext);
   await playAnimations(currentContext);
-  stopPlaybackMetrics(
-    currentContext,
-    currentContext.animations.steps.length,
-  );
+  stopPlaybackMetrics(currentContext, currentContext.animations.steps.length);
 
   if (result?.restore) {
     currentContext.pendingSearchRestore = true;
@@ -578,7 +572,7 @@ function showView(viewName) {
   renderBars(currentContext, currentContext.array);
   searchStatus.textContent = "";
   sortStatus.textContent = "";
-  syncSpeedFromSlider(currentContext);
+  currentContext.speed = getSpeedFromSliderValue();
 
   if (currentContext.targetIndicator) {
     currentContext.targetIndicator.style.display = "none";
@@ -645,7 +639,7 @@ generateBtn.addEventListener("click", () => {
   generateArray(currentContext);
   renderBars(currentContext, currentContext.array);
   currentContext.pendingSearchRestore = false;
-  syncSpeedFromSlider(currentContext);
+  currentContext.speed = getSpeedFromSliderValue();
   arrBox.value = "";
   targetBox.value = "";
   searchStatus.textContent = "";
@@ -677,7 +671,7 @@ prevBtn.addEventListener("click", async () => {
   updatePlaybackControls(currentContext);
 
   const step = currentContext.animations.steps[currentContext.currentStepIndex];
-  await animateStep(currentContext, step, true, steppingSpeed);
+  await animateStep(currentContext, step, true, currentContext.speed);
 
   currentContext.currentStepIndex--;
   updatePlaybackControls(currentContext);
@@ -686,7 +680,8 @@ prevBtn.addEventListener("click", async () => {
 nextBtn.addEventListener("click", async () => {
   if (
     !currentContext.isSteppingMode ||
-    currentContext.currentStepIndex >= currentContext.animations.steps.length - 1
+    currentContext.currentStepIndex >=
+      currentContext.animations.steps.length - 1
   ) {
     return;
   }
@@ -696,7 +691,7 @@ nextBtn.addEventListener("click", async () => {
 
   currentContext.currentStepIndex++;
   const step = currentContext.animations.steps[currentContext.currentStepIndex];
-  await animateStep(currentContext, step, false, steppingSpeed);
+  await animateStep(currentContext, step, false, currentContext.speed);
 
   updatePlaybackControls(currentContext);
 });
@@ -755,7 +750,7 @@ interpolationBtn.addEventListener("click", () => {
 });
 
 speedSlider.addEventListener("input", () => {
-  syncSpeedFromSlider(currentContext);
+  currentContext.speed = getSpeedFromSliderValue();
 });
 
 userArrLen.addEventListener("input", () => {
@@ -772,7 +767,7 @@ userArrLen.addEventListener("input", () => {
   generateArray(currentContext);
   renderBars(currentContext, currentContext.array);
   currentContext.pendingSearchRestore = false;
-  syncSpeedFromSlider(currentContext);
+  currentContext.speed = getSpeedFromSliderValue();
 });
 
 targetBox.addEventListener("input", () => {
@@ -787,13 +782,13 @@ document.getElementById("random").addEventListener("click", () => {
   if (currentContext.isUserArray && currentContext.originalArray.length > 0) {
     const randomValue =
       currentContext.originalArray[
-      Math.floor(Math.random() * currentContext.originalArray.length)
+        Math.floor(Math.random() * currentContext.originalArray.length)
       ];
     targetBox.value = randomValue;
   } else {
     const randomValue =
       currentContext.array[
-      Math.floor(Math.random() * currentContext.array.length)
+        Math.floor(Math.random() * currentContext.array.length)
       ];
     targetBox.value = randomValue;
   }
@@ -805,7 +800,6 @@ window.addEventListener("resize", () => {
   }
 });
 
-syncSpeedFromSlider(currentContext);
 updatePlaybackControls(currentContext);
 renderRealTimeStats(currentContext);
 renderQuickTips();
